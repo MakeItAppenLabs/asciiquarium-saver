@@ -39,6 +39,31 @@ import Testing
         #expect(cell(sprite, col: 0) == SpriteCell(char: " ", color: nil))
     }
 
+    @Test func customTransparentCharacter() {
+        // Perl's add_splat: transparent => ' ' and no auto_trans.
+        let sprite = Sprite(shapes: ["a ?b"], autoTransparent: false, transparent: " ")
+        #expect(cell(sprite, col: 0) == SpriteCell(char: "a", color: nil))
+        #expect(cell(sprite, col: 1) == nil)
+        #expect(cell(sprite, col: 2) == SpriteCell(char: "?", color: nil))
+        #expect(cell(sprite, col: 3) == SpriteCell(char: "b", color: nil))
+    }
+
+    @Test func customTransparentCharacterWithAutoTransparent() {
+        let sprite = Sprite(shapes: ["  *x*"], transparent: "#")
+        #expect(cell(sprite, col: 0) == nil)
+        #expect(cell(sprite, col: 1) == nil)
+        #expect(cell(sprite, col: 2) == SpriteCell(char: "*", color: nil))
+        let hash = Sprite(shapes: ["a#b a"], autoTransparent: false, transparent: "#")
+        #expect(cell(hash, col: 1) == nil)
+        #expect(cell(hash, col: 3) == SpriteCell(char: " ", color: nil))
+    }
+
+    @Test func defaultTransparentCharacterUnchanged() {
+        let sprite = Sprite(shapes: ["a ?b"], autoTransparent: false)
+        #expect(cell(sprite, col: 1) == SpriteCell(char: " ", color: nil))
+        #expect(cell(sprite, col: 2) == nil)
+    }
+
     @Test func onlyOneLeadingNewlineDropped() {
         let sprite = Sprite(shapes: ["\n\nab"])
         #expect(sprite.frames[0].height == 2)

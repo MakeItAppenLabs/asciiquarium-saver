@@ -36,9 +36,18 @@ public struct Sprite: Sendable {
     ///   - masks: color masks laid out like the shapes. Fewer masks than frames repeat the way Perl does,
     ///     so a single mask colors every frame.
     ///   - autoTransparent: turn whitespace before the first non-whitespace character of each line
-    ///     into transparent cells. `?` is always transparent.
-    public init(shapes: [String], masks: [String] = [], autoTransparent: Bool = true) {
-        let shapeRows = shapes.map { Sprite.rows(of: $0, autoTransparent: autoTransparent) }
+    ///     into transparent cells.
+    ///   - transparent: the character that is not drawn (Entity.pm's `transparent` option). It is `?`
+    ///     unless overridden; the splat uses a space.
+    public init(
+        shapes: [String],
+        masks: [String] = [],
+        autoTransparent: Bool = true,
+        transparent: Character = "?"
+    ) {
+        let shapeRows = shapes.map {
+            Sprite.rows(of: $0, autoTransparent: autoTransparent, transparent: transparent)
+        }
 
         // Term::Animation::Entity::_build_mask: pad a short mask list by re-pushing mask[0], mask[1], ...
         var maskRows: [[[Character]]?] = masks.map { Sprite.rows(of: $0, autoTransparent: false) }
@@ -54,7 +63,7 @@ public struct Sprite: Sendable {
             let mask = maskRows[index]
             let cells: [[SpriteCell?]] = rows.enumerated().map { y, row in
                 (0..<width).map { x -> SpriteCell? in
-                    guard x < row.count, row[x] != Sprite.transparent else { return nil }
+                    guard x < row.count, row[x] != transparent else { return nil }
                     var color: CellColor?
                     if let mask, y < mask.count, x < mask[y].count {
                         color = maskColor(mask[y][x])
@@ -66,8 +75,6 @@ public struct Sprite: Sendable {
         }
     }
 
-    private static let transparent: Character = "?"
-
     /// Perl `\s`: space, \t, \n, \r, \f, \v.
     private static func isPerlSpace(_ ch: Character) -> Bool {
         ch == " " || ch == "\t" || ch == "\n" || ch == "\r" || ch == "\u{0C}" || ch == "\u{0B}"
@@ -75,7 +82,7 @@ public struct Sprite: Sendable {
 
     /// `_trans_fill_string` + `_build_shape` for one string: rows of characters.
     /// Splitting works on unicode scalars so that "\r\n" is two characters, as in Perl.
-    private static func rows(of text: String, autoTransparent: Bool) -> [[Character]] {
+    private static func rows(of text: String, autoTransparent: Bool, transparent: Character = "?") -> [[Character]] {
         var lines = text.unicodeScalars.split(separator: "\n", omittingEmptySubsequences: false)
             .map { Array($0.map(Character.init)) }
         // Perl's split drops trailing empty fields (and yields nothing for an empty string).
