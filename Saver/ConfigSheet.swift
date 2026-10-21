@@ -6,9 +6,9 @@ import AquariumKit
 /// Opening it reads the stored settings. OK writes them back and calls `onSave`, then ends the sheet;
 /// Cancel ends it and leaves the store alone.
 final class ConfigSheet: NSWindowController {
-    /// The GitHub README the "Credits" button opens. Nil until the repository exists, which keeps the
+    /// The README's Credits section on GitHub, which the "Credits" button opens. Nil would keep the
     /// button disabled.
-    static let creditsURL: URL? = nil
+    static let creditsURL: URL? = URL(string: "https://github.com/AaronMashburn/asciiquarium-saver#credits")
 
     private static let contentWidth: CGFloat = 500
 
@@ -186,7 +186,7 @@ final class ConfigSheet: NSWindowController {
         let version = Bundle(for: ConfigSheet.self).object(forInfoDictionaryKey: "CFBundleShortVersionString")
             as? String ?? "1.0.0"
         return "Asciiquarium \(version) — based on asciiquarium by Kirk Baucom; "
-            + "art by Joan Stark and others. GPL-3.0."
+            + "art by Joan Stark and others; Python port by Mohammad Abu Mattar. GPL-3.0-or-later."
     }
 
     private func buildContent(in window: NSWindow) {
