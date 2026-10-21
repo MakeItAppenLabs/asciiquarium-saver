@@ -37,6 +37,8 @@ targets:
         WRAPPER_EXTENSION: saver
         INFOPLIST_FILE: Saver/Info.plist
         INSTALL_PATH: $(HOME)/Library/Screen Savers
+        # Keep thumbnail.png and thumbnail@2x.png as separate files; the system looks for those names.
+        COMBINE_HIDPI_IMAGES: NO
     dependencies:
       - package: AquariumKit
       - sdk: ScreenSaver.framework
@@ -49,6 +51,7 @@ targets:
       - path: Saver
         excludes:
           - Info.plist
+          - Resources/**
       - path: PreviewApp
     settings:
       base:
