@@ -23,7 +23,7 @@
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>GPL-3.0. Based on asciiquarium by Kirk Baucom.</string>
+	<string>Copyright © 2026 Aaron Mashburn. Based on asciiquarium, Copyright © 2013 Kirk Baucom. GPL-3.0-or-later.</string>
 	<key>NSPrincipalClass</key>
 	<string>AMAsciiquariumView</string>
 </dict>
