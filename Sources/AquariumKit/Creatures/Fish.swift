@@ -101,18 +101,30 @@ private func addFishEntity(_ c: SpawnContext, designs: [FishDesign]) {
     c.engine.add(fish)
 }
 
-/// Perl `fish_collision`: a fish that meets a `teeth` entity is eaten and leaves a splat.
-///
-/// Perl's `hook_point` branch belongs with the fishhook and is not ported here yet.
+/// Perl `fish_collision`: the colliders are checked in order and the first `teeth` or `hook_point`
+/// decides. A fish that meets teeth is eaten and leaves a splat; one that meets a hook point is
+/// caught and reeled in with the hook.
 func fishCollision(_ c: SpawnContext, fish: Entity, colliders: [Entity]) {
-    for other in colliders where other.type == "teeth" {
-        addSplat(
-            c,
-            x: Int(other.x.rounded(.down)),
-            y: Int(other.y.rounded(.down)),
-            z: other.z)
-        c.engine.kill(fish)
-        break
+    for other in colliders {
+        switch other.type {
+        case "teeth":
+            addSplat(
+                c,
+                x: Int(other.x.rounded(.down)),
+                y: Int(other.y.rounded(.down)),
+                z: other.z)
+            c.engine.kill(fish)
+            return
+        case "hook_point":
+            retract(other)
+            retract(fish)
+            // get the hook and line
+            if let hook = c.engine.entities(ofType: "fishhook").first { retract(hook) }
+            if let line = c.engine.entities(ofType: "fishline").first { retract(line) }
+            return
+        default:
+            continue
+        }
     }
 }
 
