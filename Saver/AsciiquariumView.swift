@@ -31,6 +31,19 @@ final class AsciiquariumView: ScreenSaverView {
     /// Skip frames while the window is fully covered. The Preview app can turn this off for testing
     /// while the screen is locked.
     var pausesWhenOccluded = true
+    /// Whether the window has reported itself visible since `startAnimation()`. The host draws the
+    /// view in an app extension's window shown remotely, which may never report visible, so frames
+    /// are only skipped for occlusion once visibility has been seen (the guard fails open).
+    private var hasBeenVisible = false
+
+    /// Why `animateOneFrame()` does or doesn't step, logged when it changes.
+    private enum FrameState: Equatable {
+        case animating
+        case stopped
+        case noWindow
+        case occluded(rawOcclusionState: UInt)
+    }
+    private var lastFrameState: FrameState?
 
     /// The saver entry point the host calls; settings come from the saver's `ScreenSaverDefaults`.
     override convenience init?(frame: NSRect, isPreview: Bool) {
@@ -65,8 +78,13 @@ final class AsciiquariumView: ScreenSaverView {
 
     override func startAnimation() {
         super.startAnimation()
-        log.debug("startAnimation preview=\(self.isPreview)")
+        log.debug("""
+            startAnimation preview=\(self.isPreview) window=\(self.window.map { String(describing: type(of: $0)) } ?? "nil", privacy: .public) \
+            windowVisible=\(self.window?.isVisible ?? false) occlusionState=\(self.window?.occlusionState.rawValue ?? 0)
+            """)
         isStopped = false
+        hasBeenVisible = false
+        lastFrameState = nil
         let latest = store.load()
         if latest != settings {
             settings = latest
@@ -86,14 +104,38 @@ final class AsciiquariumView: ScreenSaverView {
         stopAnimation()
     }
 
-    /// False when there's nothing to animate for: stopped, detached, or fully covered.
-    private var shouldAnimate: Bool {
-        guard !isStopped, let window else { return false }
-        return !pausesWhenOccluded || window.occlusionState.contains(.visible)
+    /// Whether this frame should step: not when stopped or detached, nor when a window that has been
+    /// visible is now fully covered. A window that never reported visible still animates.
+    private func currentFrameState() -> FrameState {
+        if isStopped { return .stopped }
+        guard let window else { return .noWindow }
+        let occlusion = window.occlusionState
+        if occlusion.contains(.visible) {
+            hasBeenVisible = true
+            return .animating
+        }
+        if pausesWhenOccluded && hasBeenVisible {
+            return .occluded(rawOcclusionState: occlusion.rawValue)
+        }
+        return .animating
     }
 
     override func animateOneFrame() {
-        guard shouldAnimate else { return }
+        let state = currentFrameState()
+        if state != lastFrameState {
+            lastFrameState = state
+            switch state {
+            case .animating:
+                log.debug("frames: animating (everVisible=\(self.hasBeenVisible)) preview=\(self.isPreview)")
+            case .stopped:
+                log.debug("frames: skipped, stopped preview=\(self.isPreview)")
+            case .noWindow:
+                log.debug("frames: skipped, no window preview=\(self.isPreview)")
+            case .occluded(let raw):
+                log.debug("frames: skipped, occluded occlusionState=\(raw) preview=\(self.isPreview)")
+            }
+        }
+        guard state == .animating else { return }
         if let tank = currentTank() {
             tank.aquarium.step()
             needsDisplay = true
