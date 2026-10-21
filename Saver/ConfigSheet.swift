@@ -32,12 +32,15 @@ final class ConfigSheet: NSWindowController {
 
     private let store: SettingsStore
     private let onSave: (AquariumSettings) -> Void
+    /// Called once when the sheet finishes (OK or Cancel), so the owner can let go of it.
+    private let onClose: () -> Void
     private let initial: AquariumSettings
     private let savedShowsAlpha = NSColorPanel.shared.showsAlpha
 
-    init(store: SettingsStore, onSave: @escaping (AquariumSettings) -> Void) {
+    init(store: SettingsStore, onSave: @escaping (AquariumSettings) -> Void, onClose: @escaping () -> Void = {}) {
         self.store = store
         self.onSave = onSave
+        self.onClose = onClose
         self.initial = store.load()
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: Self.contentWidth + 40, height: 400),
@@ -146,15 +149,19 @@ final class ConfigSheet: NSWindowController {
 
     /// Closes the color panel and ends the sheet. Outside a sheet (nothing to end), just hides it.
     private func finish() {
+        // onClose lets the owner drop its only reference; keep self alive until this method returns.
+        defer { withExtendedLifetime(self) {} }
         for well in [solidWell, topWell, bottomWell] { well.deactivate() }
         NSColorPanel.shared.orderOut(nil)
         NSColorPanel.shared.showsAlpha = savedShowsAlpha
-        guard let window else { return }
-        if let parent = window.sheetParent {
-            parent.endSheet(window)
-        } else {
-            window.orderOut(nil)
+        if let window {
+            if let parent = window.sheetParent {
+                parent.endSheet(window)
+            } else {
+                window.orderOut(nil)
+            }
         }
+        onClose()
     }
 
     // MARK: Layout

@@ -81,9 +81,17 @@ final class AsciiquariumView: ScreenSaverView {
 
     override var hasConfigureSheet: Bool { true }
 
-    /// A fresh sheet each time, so it shows what is stored now.
+    /// The sheet already on screen if there is one (a second request must not tear it down), otherwise
+    /// a fresh sheet, so it shows what is stored now.
     override var configureSheet: NSWindow? {
-        let sheet = ConfigSheet(store: store) { [weak self] saved in self?.apply(saved) }
+        if let showing = configSheet?.window, showing.sheetParent != nil || showing.isVisible {
+            return showing
+        }
+        let sheet = ConfigSheet(
+            store: store,
+            onSave: { [weak self] saved in self?.apply(saved) },
+            onClose: { [weak self] in self?.configSheet = nil }
+        )
         configSheet = sheet
         return sheet.window
     }
@@ -119,6 +127,7 @@ final class AsciiquariumView: ScreenSaverView {
         log.debug("stopAnimation preview=\(self.isPreview)")
         isStopped = true
         tank = nil
+        backgroundRenderer.purge()
     }
 
     @objc private func hostWillStop(_ note: Notification) {
@@ -168,7 +177,12 @@ final class AsciiquariumView: ScreenSaverView {
 
     override func draw(_ rect: NSRect) {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
-        let tank = isStopped ? nil : currentTank()
+        if isStopped {
+            // Don't rebuild the gradient tile for a view that is going away: a flat fill is enough.
+            backgroundRenderer.drawFlat(settings.background, in: bounds, ctx: ctx)
+            return
+        }
+        let tank = currentTank()
         if let tank {
             backgroundRenderer.surfaceInset = surfaceInset(for: tank.layout)
         }

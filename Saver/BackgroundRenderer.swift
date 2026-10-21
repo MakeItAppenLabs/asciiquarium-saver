@@ -36,6 +36,22 @@ final class BackgroundRenderer {
         }
     }
 
+    /// Drops the cached gradient tile (it is as tall as the view in pixels).
+    func purge() {
+        cachedTile = nil
+        cachedKey = nil
+    }
+
+    /// A single flat fill that never builds or caches the gradient: the solid color, or a gradient's
+    /// bottom color. Used while the saver is stopped.
+    func drawFlat(_ bg: Background, in rect: CGRect, ctx: CGContext) {
+        switch bg {
+        case .solid(let color): ctx.setFillColor(Self.cgColor(color))
+        case .gradient(_, let bottom): ctx.setFillColor(Self.cgColor(bottom))
+        }
+        ctx.fill(rect)
+    }
+
     private func drawGradient(top: RGB, bottom: RGB, in rect: CGRect, ctx: CGContext) {
         let device = ctx.convertToDeviceSpace(rect).standardized
         let pixelHeight = Int(device.height.rounded())

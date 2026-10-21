@@ -60,8 +60,9 @@ final class PreviewApp: NSObject, NSApplicationDelegate {
     }
 
     @objc func showOptions(_ sender: Any?) {
-        guard let window, let view, view.hasConfigureSheet,
-              let sheet = view.configureSheet, window.attachedSheet == nil else { return }
+        // Check for a showing sheet first: asking the view for a sheet must not replace a live one.
+        guard let window, let view, view.hasConfigureSheet, window.attachedSheet == nil,
+              let sheet = view.configureSheet else { return }
         window.beginSheet(sheet)
         let args = UserDefaults.standard
         if let driver = args.string(forKey: "optionsDrive") {
