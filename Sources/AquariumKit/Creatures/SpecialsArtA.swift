@@ -1,3 +1,7 @@
+// Asciiquarium for macOS — Swift port Copyright (C) 2026 Aaron Mashburn.
+// Modified from asciiquarium 1.6, Copyright (C) 2013 Kirk Baucom.
+// Licensed under the GNU GPL version 3 or (at your option) any later version; see LICENSE.
+
 // Art for the first six special creatures, copied from Perl asciiquarium 1.6 with its `q{}` and
 // `q##` escapes resolved: `\\` is one backslash and `\{`, `\}` are braces. `?` marks a transparent
 // cell. Index 0 faces right and index 1 faces left, as in Perl.

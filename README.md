@@ -18,13 +18,16 @@ by Kirk Baucom, rewritten in Swift with no third-party runtime code.
 
 1. Download `Asciiquarium-<version>.zip` from the
    [Releases page](https://github.com/AaronMashburn/asciiquarium-saver/releases) and unzip it. You get
-   `Asciiquarium.saver`.
+   `Asciiquarium.saver` and the `LICENSE` file.
 2. Double-click `Asciiquarium.saver`. System Settings opens and asks whether to install it for your user
    only or for everyone on the Mac. Choose one and confirm.
 3. In System Settings, open **Screen Saver** and choose **Asciiquarium** (it is listed under **Other**).
    Click **Options...** to change how it looks.
 
 The saver is signed and notarized, so macOS opens it without a security warning.
+
+**Upgrading.** After installing a new version over an old one, run `killall legacyScreenSaver` in Terminal
+or log out and back in. The system keeps the old version loaded until then.
 
 To remove it, delete `Asciiquarium.saver` from `~/Library/Screen Savers` (or `/Library/Screen Savers` if you
 installed it for everyone).
@@ -73,7 +76,7 @@ part of a release.
 
 `scripts/release.sh <version>` builds a universal Release, signs it with a "Developer ID Application"
 certificate, submits it to Apple's notary service, staples the ticket and writes
-`build/Asciiquarium-<version>.zip`. It needs that certificate in your keychain and a `notarytool` keychain
+`build/Asciiquarium-<version>.zip`, which holds `Asciiquarium.saver` and `LICENSE`. It needs that certificate in your keychain and a `notarytool` keychain
 profile named `asciiquarium-notary` (`xcrun notarytool store-credentials asciiquarium-notary`). It stops at
 the first error. `scripts/release.sh --dry-run <version>` prints the commands without running any of them.
 
@@ -90,8 +93,16 @@ This port follows these pinned versions. Where the Perl program and the Python p
 
 ## License
 
-GPL-3.0. See [LICENSE](LICENSE). The original asciiquarium is released under the GNU GPL, and
-Term::Animation under the same terms as Perl itself.
+This program is free software, released under the GNU General Public License version 3 or (at your option)
+any later version (GPL-3.0-or-later). See [LICENSE](LICENSE).
+
+It is a modified version of other people's work: a Swift port of asciiquarium 1.6 and of the Term::Animation
+2.6 engine it runs on.
+
+- The original asciiquarium is by Kirk Baucom and is released under GPL-2.0-or-later.
+- Term::Animation is by Kirk Baucom and is released under the same terms as Perl itself.
+- Most of the ASCII art (by Joan Stark and others) has no formal license. It is published here on the same
+  terms as the upstream projects, with credit to each artist (see Credits below).
 
 ## Credits
 

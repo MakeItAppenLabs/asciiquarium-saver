@@ -6,8 +6,9 @@
 #   scripts/release.sh [--dry-run] --staple-only <version>
 #
 # Produces build/Asciiquarium-<version>.zip containing the signed, notarized, stapled
-# Asciiquarium.saver. Maintainer-only: it needs a "Developer ID Application" identity in the
-# keychain and a notarytool keychain profile named "asciiquarium-notary" (see README.md).
+# Asciiquarium.saver and the LICENSE file (the GPL wants the license to travel with the binary).
+# Maintainer-only: it needs a "Developer ID Application" identity in the keychain and a notarytool
+# keychain profile named "asciiquarium-notary" (see README.md).
 #
 # --dry-run prints every command it would run and runs none of the build, signing or Apple steps.
 # The read-only preflight checks still run; a missing identity is reported but does not stop a
@@ -15,7 +16,7 @@
 #
 # --staple-only skips the build and the submission. Use it when notarization was Accepted but
 # stapling failed (Apple's ticket can take a minute or two to become available): it staples the
-# existing build/Build/Products/Release/Asciiquarium.saver, checks it and re-zips it.
+# existing build/Build/Products/Release/Asciiquarium.saver, checks it and re-zips it (with LICENSE).
 #
 # Credentials never appear here: notarytool reads them from the keychain profile.
 # Deliberately no "set -x", which would echo expanded commands.
@@ -149,6 +150,20 @@ staple_with_retry() {
     done
 }
 
+# make_release_zip APP ZIP: write the final download, holding the saver and LICENSE side by side.
+# ditto zips a single source, so both are staged in one folder first (ditto keeps the signature
+# and the stapled ticket intact when copying).
+make_release_zip() {
+    local app="$1" zip="$2" stage="$BUILD_DIR/zip-stage"
+    run rm -rf "$stage"
+    run mkdir -p "$stage"
+    run ditto "$app" "$stage/$PRODUCT"
+    run cp LICENSE "$stage/LICENSE"
+    run rm -f "$zip"
+    run ditto -c -k "$stage" "$zip"
+    run rm -rf "$stage"
+}
+
 # Tests source this file for the functions above and stop here.
 if [ "${RELEASE_SH_LIB_ONLY:-}" = 1 ]; then
     # shellcheck disable=SC2317
@@ -171,6 +186,7 @@ done
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "version must look like 1.0.0, got '$VERSION'"
 
 cd "$(dirname "$0")/.."
+[ -f LICENSE ] || die "LICENSE not found in $(pwd); the release zip must include it"
 
 ZIP_PATH="$BUILD_DIR/Asciiquarium-$VERSION.zip"
 NOTARY_ZIP="$BUILD_DIR/Asciiquarium-$VERSION-notarize.zip"
@@ -195,8 +211,7 @@ if [ "$STAPLE_ONLY" -eq 1 ]; then
     staple_with_retry "$APP"
     run xcrun stapler validate "$APP"
     run spctl -a -vv -t open --context context:primary-signature "$APP"
-    run rm -f "$ZIP_PATH"
-    run ditto -c -k --keepParent "$APP" "$ZIP_PATH"
+    make_release_zip "$APP" "$ZIP_PATH"
     echo
     if [ "$DRY_RUN" -eq 1 ]; then
         echo "Dry run complete. A real run writes $ZIP_PATH."
@@ -310,8 +325,8 @@ staple_with_retry "$APP"
 run xcrun stapler validate "$APP"
 run spctl -a -vv -t open --context context:primary-signature "$APP"
 
-step "7. Zip the stapled saver"
-run ditto -c -k --keepParent "$APP" "$ZIP_PATH"
+step "7. Zip the stapled saver with LICENSE"
+make_release_zip "$APP" "$ZIP_PATH"
 run rm -f "$NOTARY_ZIP"
 
 echo

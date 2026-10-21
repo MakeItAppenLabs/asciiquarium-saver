@@ -1,3 +1,8 @@
+// Asciiquarium for macOS — Swift port Copyright (C) 2026 Aaron Mashburn.
+// Modified from asciiquarium 1.6, Copyright (C) 2013 Kirk Baucom, and from Term::Animation 2.6
+// by Kirk Baucom. Licensed under the GNU GPL version 3 or (at your option) any later version;
+// see LICENSE.
+
 import Foundation
 
 /// The animation engine: a port of Term::Animation 2.6 as asciiquarium 1.6 uses it.

@@ -1,3 +1,7 @@
+// Asciiquarium for macOS — Swift port Copyright (C) 2026 Aaron Mashburn.
+// Modified from asciiquarium 1.6, Copyright (C) 2013 Kirk Baucom.
+// Licensed under the GNU GPL version 3 or (at your option) any later version; see LICENSE.
+
 import Foundation
 
 // The random "special" creatures of asciiquarium 1.6: ship, whale, monster, big fish, shark, fishhook,

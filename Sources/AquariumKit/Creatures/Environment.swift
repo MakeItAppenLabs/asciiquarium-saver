@@ -1,3 +1,7 @@
+// Asciiquarium for macOS — Swift port Copyright (C) 2026 Aaron Mashburn.
+// Modified from asciiquarium 1.6, Copyright (C) 2013 Kirk Baucom.
+// Licensed under the GNU GPL version 3 or (at your option) any later version; see LICENSE.
+
 /// The water line, castle and seaweed: the fixed scenery of the aquarium.
 
 private let cyan = CellColor(color: .cyan, bright: false)
