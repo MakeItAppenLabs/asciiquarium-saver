@@ -74,6 +74,28 @@ final class AsciiquariumView: ScreenSaverView {
         DistributedNotificationCenter.default().removeObserver(self)
     }
 
+    // MARK: Options sheet
+
+    /// The most recently opened Options sheet, kept alive while the host shows it.
+    private var configSheet: ConfigSheet?
+
+    override var hasConfigureSheet: Bool { true }
+
+    /// A fresh sheet each time, so it shows what is stored now.
+    override var configureSheet: NSWindow? {
+        let sheet = ConfigSheet(store: store) { [weak self] saved in self?.apply(saved) }
+        configSheet = sheet
+        return sheet.window
+    }
+
+    /// Adopts settings saved from the Options sheet: the tank is rebuilt the same way a size change does.
+    private func apply(_ saved: AquariumSettings) {
+        log.debug("options saved preview=\(self.isPreview)")
+        settings = saved
+        tank = nil
+        needsDisplay = true
+    }
+
     // MARK: Lifecycle
 
     override func startAnimation() {
