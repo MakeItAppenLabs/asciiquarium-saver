@@ -1,16 +1,20 @@
 import Foundation
 
-// The random "special" creatures of asciiquarium 1.6, first half: ship, whale, monster, big fish,
-// shark and fishhook. Exactly one special is on screen at a time. Each one's death starts the next
-// (Perl `random_object`).
+// The random "special" creatures of asciiquarium 1.6: ship, whale, monster, big fish, shark, fishhook,
+// swan, ducks, dolphins, submarine, swordfish and jellyfish. Exactly one special is on screen at a
+// time. Each one's death starts the next (Perl `random_object`), chosen among the enabled ones.
 
+// Perl's lower case color names are normal, upper case ones bold (bright).
 private let white = CellColor(color: .white, bright: false)
 private let green = CellColor(color: .green, bright: false)
 private let cyan = CellColor(color: .cyan, bright: false)
 private let yellow = CellColor(color: .yellow, bright: false)
-
-/// The specials that exist so far, in Perl `init_random_objects` order.
-private let portedSpecials: [SpecialKind] = [.ship, .whale, .monster, .bigFish, .shark, .fishhook]
+private let blue = CellColor(color: .blue, bright: false)
+private let whiteBright = CellColor(color: .white, bright: true)
+private let yellowBright = CellColor(color: .yellow, bright: true)
+private let blueBright = CellColor(color: .blue, bright: true)
+private let cyanBright = CellColor(color: .cyan, bright: true)
+private let magentaBright = CellColor(color: .magenta, bright: true)
 
 /// Adds one special of the given kind.
 public func addSpecial(_ kind: SpecialKind, _ c: SpawnContext) {
@@ -21,20 +25,22 @@ public func addSpecial(_ kind: SpecialKind, _ c: SpawnContext) {
     case .bigFish: addBigFish(c)
     case .shark: addShark(c)
     case .fishhook: addFishhook(c)
-    case .swan, .ducks, .dolphins, .submarine, .swordfish, .jellyfish:
-        unportedSpecial(kind)
+    case .swan: addSwan(c)
+    case .ducks: addDucks(c)
+    case .dolphins: addDolphins(c)
+    case .submarine: addSubmarine(c)
+    case .swordfish: addSwordfish(c)
+    case .jellyfish: addJellyfish(c)
     }
 }
 
-/// Perl `random_object`: starts a special chosen uniformly from the ones ported so far.
+/// Perl `random_object`: starts a special chosen uniformly from the enabled ones. The choice is made
+/// from `SpecialKind.allCases` order, so a seeded run is reproducible. With none enabled nothing
+/// starts.
 public func addRandomSpecial(_ c: SpawnContext) {
-    addSpecial(portedSpecials[c.engine.rng.int(portedSpecials.count)], c)
-}
-
-/// TASK 6: replace this stub with the real `add...` calls, remove it, and make `addRandomSpecial`
-/// pick among all twelve kinds (honoring `enabledSpecials`).
-private func unportedSpecial(_ kind: SpecialKind) -> Never {
-    fatalError("unported special: \(kind)")
+    let choices = SpecialKind.allCases.filter { c.settings.enabledSpecials.contains($0) }
+    guard !choices.isEmpty else { return }
+    addSpecial(choices[c.engine.rng.int(choices.count)], c)
 }
 
 // MARK: death
@@ -390,4 +396,286 @@ private func addBigFishEntity(
     )
     fish.onDeath = startsNextSpecial(c.settings)
     engine.add(fish)
+}
+
+// MARK: swan
+
+/// Perl `add_swan`.
+func addSwan(_ c: SpawnContext) {
+    let engine = c.engine
+    let dir = engine.rng.int(2)
+    var x = -10.0
+    var speed = 1.0
+    if dir == 1 {
+        speed *= -1
+        x = Double(engine.cols - 2)
+    }
+
+    let swan = Entity(
+        type: "swan",
+        sprite: Sprite(shapes: [SwanArt.shapes[dir]], masks: [SwanArt.masks[dir]], autoTransparent: true),
+        x: x,
+        y: 1,
+        z: Depth.waterGap3,
+        dx: speed,
+        frameSpeed: 0.25,
+        defaultColor: whiteBright,
+        dieOffscreen: true
+    )
+    swan.onDeath = startsNextSpecial(c.settings)
+    engine.add(swan)
+}
+
+// MARK: ducks
+
+/// Perl `add_ducks`: three ducks in a row, three frames in which a different one is the lead.
+func addDucks(_ c: SpawnContext) {
+    let engine = c.engine
+    let dir = engine.rng.int(2)
+    var x = -30.0
+    var speed = 1.0
+    if dir == 1 {
+        speed *= -1
+        x = Double(engine.cols - 2)
+    }
+
+    let shapes = DuckArt.shapes[dir]
+    let ducks = Entity(
+        type: "ducks",
+        sprite: Sprite(shapes: shapes, masks: [DuckArt.masks[dir]], autoTransparent: true),
+        x: x,
+        y: 5,
+        z: Depth.waterGap3,
+        dx: speed,
+        frameSpeed: 0.25,
+        defaultColor: whiteBright,
+        dieOffscreen: true
+    )
+    ducks.onDeath = startsNextSpecial(c.settings)
+    engine.add(ducks)
+}
+
+// MARK: dolphins
+
+/// Perl `add_dolphins`: three dolphins that leap out of the water and dive back in on one shared path.
+///
+/// The trailing dolphin (`dolphin`) is the one whose death starts the next special. The others
+/// (`dolphin_mate`) start off screen, so they only die off screen after the lead dolphin has left and
+/// switched that on for them.
+func addDolphins(_ c: SpawnContext) {
+    let engine = c.engine
+    let dir = engine.rng.int(2)
+
+    var x = -13.0
+    var speed = 1.0
+    var distance = 15.0  // how far apart the dolphins are
+    if dir == 1 {
+        speed *= -1
+        distance *= -1
+        x = Double(engine.cols - 2)
+    }
+
+    let up = PathStep(dx: speed, dy: -0.5, frame: 0.5)
+    let down = PathStep(dx: speed, dy: 0.5, frame: 0.5)
+    let glide = PathStep(dx: speed, dy: 0, frame: 0.5)
+    let path =
+        Array(repeating: up, count: 14) + Array(repeating: glide, count: 2)
+        + Array(repeating: down, count: 14) + Array(repeating: glide, count: 6)
+
+    func dolphin(type: String, x: Double, y: Double, startIndex: Int, color: CellColor, dieOffscreen: Bool) -> Entity {
+        let entity = Entity(
+            type: type,
+            sprite: Sprite(
+                shapes: DolphinArt.shapes[dir], masks: [DolphinArt.masks[dir]], autoTransparent: true),
+            x: x,
+            y: y,
+            z: Depth.waterGap3,
+            defaultColor: color,
+            dieOffscreen: dieOffscreen
+        )
+        entity.path = path
+        entity.pathIndex = startIndex
+        return entity
+    }
+
+    let dolphin3 = dolphin(
+        type: "dolphin", x: x - distance * 2, y: 8, startIndex: 0, color: blue, dieOffscreen: false)
+    dolphin3.onDeath = startsNextSpecial(c.settings)
+    engine.add(dolphin3)
+
+    let dolphin2 = dolphin(
+        type: "dolphin_mate", x: x - distance, y: 2, startIndex: 12, color: blueBright, dieOffscreen: false)
+    engine.add(dolphin2)
+
+    let dolphin1 = dolphin(
+        type: "dolphin_mate", x: x, y: 5, startIndex: 24, color: cyanBright, dieOffscreen: true)
+    // The lead dolphin tells the others to die off screen, since they start off screen.
+    dolphin1.onDeath = { _, _ in
+        dolphin2.dieOffscreen = true
+        dolphin3.dieOffscreen = true
+    }
+    engine.add(dolphin1)
+}
+
+// MARK: submarine
+
+/// How many steps the submarine waits on each of its nine periscope frames.
+private let submarineFrameDelay = [1, 4, 4, 9, 9, 9, 4, 4, 1]
+
+/// Perl `submarine_callback`: sail on, but stop in the middle of the screen (or at the step that
+/// would skip over it) and raise the periscope frame by frame before sailing on.
+private func submarineTick(_ entity: Entity, _ engine: Engine, delay: inout Int) {
+    let centre = Double(engine.cols) / 2 - 20
+    let x = entity.x
+    let skipsOverCentre = (x < centre && x + entity.dx > centre) || (x > centre && x + entity.dx < centre)
+    var frame = Int(entity.frame)
+
+    if !skipsOverCentre && x != centre {
+        entity.x += entity.dx
+    } else if frame < submarineFrameDelay.count - 1 {
+        if delay < submarineFrameDelay[frame] {
+            delay += 1
+        } else {
+            delay = 0
+            frame += 1
+        }
+    } else {
+        entity.x += entity.dx
+    }
+    entity.frame = Double(frame)
+}
+
+/// Perl `add_submarine`.
+func addSubmarine(_ c: SpawnContext) {
+    let engine = c.engine
+    let dir = engine.rng.int(2)
+    var x = -40.0
+    var speed = 1.0
+    if dir == 1 {
+        speed *= -1
+        x = Double(engine.cols - 2)
+    }
+
+    let submarine = Entity(
+        type: "submarine",
+        sprite: Sprite(
+            shapes: SubmarineArt.shapes[dir], masks: [SubmarineArt.masks[dir]], autoTransparent: true),
+        x: x,
+        y: 6,
+        z: Depth.waterGap3,
+        dx: speed,
+        defaultColor: yellowBright,
+        dieOffscreen: true
+    )
+    var delay = 0
+    submarine.onTick = { entity, engine in
+        submarineTick(entity, engine, delay: &delay)
+    }
+    submarine.onDeath = startsNextSpecial(c.settings)
+    engine.add(submarine)
+}
+
+// MARK: swordfish
+
+/// Perl `add_sword_fish`.
+func addSwordfish(_ c: SpawnContext) {
+    let engine = c.engine
+    let rng = engine.rng
+    let dir = rng.int(2)
+    var x = -33.0
+    var speed = 3.5
+    if dir == 1 {
+        x = Double(engine.cols - 1)
+        speed *= -1
+    }
+    let maxHeight = 9
+    let minHeight = engine.rows - 14
+    let y = rng.int(minHeight - maxHeight) + maxHeight
+    // Perl calls `rand_color` straight on the mask, so the 4s are random colors, not eyes.
+    let colorMask = randomizeFishMask(SwordfishArt.masks[dir], rng: rng)
+
+    let fish = Entity(
+        type: "swordfish",
+        sprite: Sprite(shapes: [SwordfishArt.shapes[dir]], masks: [colorMask], autoTransparent: true),
+        x: x,
+        y: Double(y),
+        z: Depth.shark,
+        dx: speed,
+        defaultColor: yellowBright,
+        dieOffscreen: true
+    )
+    fish.onDeath = startsNextSpecial(c.settings)
+    engine.add(fish)
+}
+
+// MARK: jellyfish
+
+/// Perl `jellyfish_callback`: every so often pick a new vertical drift, turn it around near the
+/// waterline and the bottom, then move as usual.
+private func jellyfishTick(_ jellyfish: Entity, _ engine: Engine, delay: inout Int) {
+    let rng = engine.rng
+
+    if delay <= 0 {
+        jellyfish.dy = (rng.double() < 0.5 ? -1 : 1) * (rng.double() * 0.25 + 0.05)
+        delay = rng.int(40) + 20
+    } else {
+        delay -= 1
+    }
+
+    // Keep jellyfish from drifting into the title/waterline or bottom area.
+    if jellyfish.y <= 7 {
+        jellyfish.dy = abs(jellyfish.dy)
+        delay = rng.int(20) + 10
+    } else if jellyfish.y + Double(jellyfish.height) >= Double(engine.rows - 2) {
+        jellyfish.dy = -abs(jellyfish.dy)
+        delay = rng.int(20) + 10
+    }
+
+    jellyfish.defaultMove()
+}
+
+/// Perl `add_jellyfish`.
+func addJellyfish(_ c: SpawnContext) {
+    let engine = c.engine
+    let rng = engine.rng
+
+    let tentacle = rng.int(JellyfishArt.leftTentacles.count)
+    let images = JellyfishArt.shapes(
+        left: JellyfishArt.leftTentacles[tentacle], right: JellyfishArt.rightTentacles[tentacle])
+
+    let dir = rng.int(2)
+    var x = 0.0
+    var speed = rng.double() + 0.5
+    if dir == 1 {
+        speed *= -1
+        x = Double(engine.cols - 2)
+    }
+
+    let maxHeight = 9
+    let minHeight = engine.rows - 10
+    let y = rng.int(minHeight - maxHeight) + maxHeight
+    let z = rng.int(10) + Depth.fishStart
+
+    let colorMask = randomizeFishMask(JellyfishArt.masks[dir], rng: rng)
+
+    let verticalSpeed = rng.int(2) == 0 ? -0.2 : 0.2
+    var delay = rng.int(40) + 20
+
+    let jellyfish = Entity(
+        type: "jellyfish",
+        sprite: Sprite(shapes: images[dir], masks: [colorMask], autoTransparent: true),
+        x: x,
+        y: Double(y),
+        z: z,
+        dx: speed,
+        dy: verticalSpeed,
+        frameSpeed: 0.2,
+        defaultColor: magentaBright,
+        dieOffscreen: true
+    )
+    jellyfish.onTick = { entity, engine in
+        jellyfishTick(entity, engine, delay: &delay)
+    }
+    jellyfish.onDeath = startsNextSpecial(c.settings)
+    engine.add(jellyfish)
 }

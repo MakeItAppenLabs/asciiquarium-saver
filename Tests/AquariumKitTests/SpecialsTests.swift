@@ -2,8 +2,14 @@ import Testing
 @testable import AquariumKit
 
 @Suite struct SpecialsTests {
-    private static let headTypes: Set<String> = ["ship", "whale", "monster", "bigfish", "shark", "fishhook"]
-    private static let ported: [SpecialKind] = [.ship, .whale, .monster, .bigFish, .shark, .fishhook]
+    /// The entity that stands for each special: the one whose death starts the next special.
+    private static let headType: [SpecialKind: String] = [
+        .ship: "ship", .whale: "whale", .monster: "monster", .bigFish: "bigfish",
+        .shark: "shark", .fishhook: "fishhook", .swan: "swan", .ducks: "ducks",
+        .dolphins: "dolphin", .submarine: "submarine", .swordfish: "swordfish",
+        .jellyfish: "jellyfish",
+    ]
+    private static let headTypes = Set(headType.values)
 
     private func context(
         cols: Int = 80, rows: Int = 24, seed: UInt64 = 1, settings: AquariumSettings = AquariumSettings()
@@ -17,7 +23,9 @@ import Testing
     }
 
     private func allEntities(_ engine: Engine) -> [Entity] {
-        (Self.headTypes.union(["teeth", "fishline", "hook_point"])).flatMap { engine.entities(ofType: $0) }
+        (Self.headTypes.union(["teeth", "fishline", "hook_point", "dolphin_mate"])).flatMap {
+            engine.entities(ofType: $0)
+        }
     }
 
     /// Steps until `entity` is gone. Fails the test when it takes longer than `limit` steps.
@@ -382,7 +390,7 @@ import Testing
 
     // MARK: one special at a time
 
-    @Test(arguments: [SpecialKind.ship, .whale, .monster, .bigFish, .shark, .fishhook])
+    @Test(arguments: SpecialKind.allCases)
     func oneSpecialAtATime(kind: SpecialKind) {
         for seed in 1...6 as ClosedRange<UInt64> {
             let c = context(seed: seed)
@@ -391,17 +399,7 @@ import Testing
             #expect(original.count == 1)
             let members = allEntities(c.engine)
 
-            if kind == .fishhook {
-                // A hook only leaves when it catches something.
-                for _ in 0..<100 { c.engine.step() }
-                addFish(c)
-                let fish = c.engine.entities(ofType: "fish")[0]
-                let point = c.engine.entities(ofType: "hook_point")[0]
-                fish.dx = 0
-                fish.x = point.x
-                fish.y = point.y
-                fish.z = 5
-            }
+            if kind == .fishhook { feedHook(c) }
 
             step(c.engine, until: original[0])
             let now = heads(c.engine)
@@ -419,7 +417,7 @@ import Testing
         }
     }
 
-    @Test func randomSpecialPicksUniformlyAmongThePorted() {
+    @Test func randomSpecialPicksUniformlyAmongAllTwelve() {
         var counts: [String: Int] = [:]
         let n = 1800
         for seed in 0..<n {
@@ -431,20 +429,442 @@ import Testing
         }
         #expect(Set(counts.keys) == Self.headTypes)
         for (type, count) in counts {
-            #expect(abs(Double(count) / Double(n) - 1.0 / 6.0) < 0.04, "\(type): \(count)")
+            #expect(abs(Double(count) / Double(n) - 1.0 / 12.0) < 0.03, "\(type): \(count)")
         }
     }
 
-    @Test func addSpecialBuildsEachPortedKind() {
-        let expected: [SpecialKind: String] = [
-            .ship: "ship", .whale: "whale", .monster: "monster", .bigFish: "bigfish",
-            .shark: "shark", .fishhook: "fishhook",
-        ]
-        for kind in Self.ported {
+    @Test func addSpecialBuildsEachKind() {
+        #expect(Self.headType.count == SpecialKind.allCases.count)
+        for kind in SpecialKind.allCases {
             let c = context()
             addSpecial(kind, c)
-            #expect(heads(c.engine).map(\.type) == [expected[kind]!])
+            #expect(heads(c.engine).map(\.type) == [Self.headType[kind]!], "\(kind)")
         }
+    }
+
+    /// A hook only leaves when it catches something: lowers it, then puts a stationary fish on its point.
+    private func feedHook(_ c: SpawnContext) {
+        for _ in 0..<100 { c.engine.step() }
+        addFish(c)
+        let fish = c.engine.entities(ofType: "fish")[0]
+        let point = c.engine.entities(ofType: "hook_point")[0]
+        fish.dx = 0
+        fish.x = point.x
+        fish.y = point.y
+        fish.z = 5
+    }
+
+    // MARK: swan, ducks
+
+    @Test func swanAndDucksGeometry() {
+        for (kind, type, startX, y, frames) in [
+            (SpecialKind.swan, "swan", -10.0, 1.0, 1), (.ducks, "ducks", -30.0, 5.0, 3),
+        ] {
+            var dirs = Set<Double>()
+            for seed in 1...20 as ClosedRange<UInt64> {
+                let c = context(seed: seed)
+                addSpecial(kind, c)
+                let e = c.engine.entities(ofType: type)[0]
+                dirs.insert(e.dx)
+                #expect(abs(e.dx) == 1 && e.frameSpeed == 0.25)
+                #expect(e.x == (e.dx > 0 ? startX : 78) && e.y == y)
+                #expect(e.z == Depth.waterGap3 && e.dieOffscreen)
+                #expect(e.sprite.frames.count == frames)
+                #expect(e.defaultColor == CellColor(color: .white, bright: true))
+            }
+            #expect(dirs == [1, -1], "\(type)")
+        }
+    }
+
+    @Test func ducksTakeTurnsLeading() {
+        // Three frames, a quarter frame a step: each is shown for four steps, in order, and wraps.
+        let c = context(seed: 3)
+        addDucks(c)
+        let ducks = c.engine.entities(ofType: "ducks")[0]
+        var shown: [Int] = []
+        for _ in 0..<24 {
+            shown.append(Int(ducks.frame))
+            c.engine.step()
+        }
+        let cycle = [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2]
+        #expect(shown == cycle + cycle)
+    }
+
+    // MARK: dolphins
+
+    @Test func dolphinsGeometry() {
+        var dirs = Set<Double>()
+        for seed in 1...20 as ClosedRange<UInt64> {
+            let c = context(seed: seed)
+            addDolphins(c)
+            let trailing = c.engine.entities(ofType: "dolphin")
+            let mates = c.engine.entities(ofType: "dolphin_mate")
+            #expect(trailing.count == 1 && mates.count == 2)
+            let (d3, d2, d1) = (trailing[0], mates[0], mates[1])  // in the order Perl adds them
+            let speed = d1.path[0].dx
+            dirs.insert(speed)
+            let lead = speed > 0 ? -13.0 : 78
+            let gap = speed > 0 ? 15.0 : -15
+            #expect(d1.x == lead && d2.x == lead - gap && d3.x == lead - 2 * gap)
+            #expect([d3.y, d2.y, d1.y] == [8, 2, 5])
+            #expect([d3.pathIndex, d2.pathIndex, d1.pathIndex] == [0, 12, 24])
+            #expect([d3, d2, d1].allSatisfy { $0.z == Depth.waterGap3 && $0.path.count == 36 })
+            #expect([d3, d2, d1].allSatisfy { $0.sprite.frames.count == 2 })
+            // Only the lead dolphin may die off screen at first.
+            #expect(!d3.dieOffscreen && !d2.dieOffscreen && d1.dieOffscreen)
+            #expect(d3.defaultColor == CellColor(color: .blue, bright: false))
+            #expect(d2.defaultColor == CellColor(color: .blue, bright: true))
+            #expect(d1.defaultColor == CellColor(color: .cyan, bright: true))
+        }
+        #expect(dirs == [1, -1])
+    }
+
+    @Test func dolphinsLeapAndDive() {
+        let c = context(seed: 1)
+        addDolphins(c)
+        let lead = c.engine.entities(ofType: "dolphin_mate")[1]
+        let (x0, y0) = (lead.x, lead.y)
+        let speed = lead.path[0].dx
+        // The path is 14 up, 2 glide, 14 down, 6 glide, and the lead starts at index 24: six steps
+        // into the dive.
+        var ys: [Double] = []
+        for _ in 0..<36 {
+            c.engine.step()
+            ys.append(lead.y)
+        }
+        #expect(lead.x == x0 + 36 * speed)
+        #expect(ys[5] == y0 + 3)  // end of the dive
+        #expect(ys[11] == y0 + 3)  // glided
+        #expect(ys[11 + 14] == y0 + 3 - 7)  // top of the leap
+        #expect(ys[11 + 16] == y0 + 3 - 7)  // glided
+        #expect(ys[35] == y0)  // and back where it began
+        // The path sets the frame outright: always the first picture, as in Perl.
+        #expect(lead.frame == 0.5 && Int(lead.frame) == 0)
+    }
+
+    @Test func dolphinsLeaveInOrderAndStartOneSpecial() {
+        for seed in 1...6 as ClosedRange<UInt64> {
+            let c = context(seed: seed)
+            addDolphins(c)
+            let trailing = c.engine.entities(ofType: "dolphin")[0]
+            let mates = c.engine.entities(ofType: "dolphin_mate")
+            let lead = mates[1]
+            var steps = 0
+            var leadDied: Int?
+            while trailing.isAlive && steps < 1500 {
+                c.engine.step()
+                steps += 1
+                if leadDied == nil, !lead.isAlive { leadDied = steps }
+                if trailing.isAlive {
+                    // No special starts before the trailing dolphin is gone.
+                    #expect(heads(c.engine).count == 1 && heads(c.engine)[0] === trailing)
+                }
+            }
+            #expect(!trailing.isAlive, "seed \(seed)")
+            let leadStep = try! #require(leadDied)
+            #expect(leadStep < steps, "the lead dolphin leaves before the trailing one")
+            #expect(mates.allSatisfy { !$0.isAlive })
+            #expect(heads(c.engine).count == 1 && heads(c.engine)[0] !== trailing)
+        }
+    }
+
+    @Test func dolphinsDoNotDieOffscreenBeforeTheLeadLeaves() {
+        // Negative control: the two that start off screen are still there while the lead swims.
+        let c = context(seed: 1)
+        addDolphins(c)
+        let lead = c.engine.entities(ofType: "dolphin_mate")[1]
+        let others = c.engine.entities(ofType: "dolphin") + [c.engine.entities(ofType: "dolphin_mate")[0]]
+        for _ in 0..<10 { c.engine.step() }
+        #expect(lead.isAlive && others.allSatisfy(\.isAlive))
+    }
+
+    // MARK: submarine
+
+    @Test func submarineGeometry() {
+        var dirs = Set<Double>()
+        for seed in 1...20 as ClosedRange<UInt64> {
+            let c = context(seed: seed)
+            addSubmarine(c)
+            let sub = c.engine.entities(ofType: "submarine")[0]
+            dirs.insert(sub.dx)
+            #expect(abs(sub.dx) == 1 && sub.y == 6 && sub.z == Depth.waterGap3)
+            #expect(sub.x == (sub.dx > 0 ? -40 : 78))
+            #expect(sub.sprite.frames.count == 9 && sub.frame == 0)
+            #expect(sub.defaultColor == CellColor(color: .yellow, bright: true))
+        }
+        #expect(dirs == [1, -1])
+    }
+
+    /// The submarine sits in the middle of the screen while the periscope comes up frame by frame. An
+    /// odd width puts the middle between two columns, and the step that would skip over it pauses
+    /// instead.
+    @Test(arguments: [80, 81])
+    func submarineStopsInTheMiddle(cols: Int) {
+        for seed in 1...8 as ClosedRange<UInt64> {
+            let c = context(cols: cols, seed: seed)
+            addSubmarine(c)
+            let sub = c.engine.entities(ofType: "submarine")[0]
+            var xs: [Double] = []
+            var frames: [Int] = []
+            while sub.isAlive && xs.count < 600 {
+                c.engine.step()
+                xs.append(sub.x)
+                frames.append(Int(sub.frame))
+            }
+            #expect(!sub.isAlive)
+            // The longest stretch at one place is the pause: frames 0...7 last 52 steps in all, and the
+            // step that completes frame 7 leaves the picture at frame 8.
+            var best = (start: 0, length: 0)
+            var start = 0
+            for i in 1...xs.count {
+                if i == xs.count || xs[i] != xs[start] {
+                    if i - start > best.length { best = (start, i - start) }
+                    start = i
+                }
+            }
+            #expect(best.length == 53, "cols \(cols) seed \(seed): paused \(best.length) steps")
+            let paused = Array(frames[best.start..<(best.start + best.length)])
+            #expect(paused == paused.sorted() && paused.first == 0 && paused.last == 8)
+            #expect(Set(paused) == Set(0...8))
+            // It never goes back to an earlier frame afterwards.
+            #expect(frames[(best.start + best.length)...].allSatisfy { $0 == 8 })
+            #expect(abs(xs[best.start] - (Double(cols) / 2 - 20)) < 1)
+        }
+    }
+
+    @Test func submarineWaitsLongestOnTheMiddleFrames() {
+        let c = context(seed: 2)
+        addSubmarine(c)
+        let sub = c.engine.entities(ofType: "submarine")[0]
+        var counts = [Int](repeating: 0, count: 9)
+        var steps = 0
+        while sub.isAlive && steps < 600 {
+            c.engine.step()
+            counts[Int(sub.frame)] += 1
+            steps += 1
+        }
+        // Frames 0...7 are each shown for delay + 1 steps while it sits there. (Frame 0 is also shown
+        // on the way in, and frame 8 on the way out.)
+        let waits = (1...7).map { counts[$0] }
+        #expect(waits == [5, 5, 10, 10, 10, 5, 5])
+    }
+
+    // MARK: swordfish
+
+    @Test func swordfishGeometry() {
+        var dirs = Set<Double>()
+        for seed in 1...30 as ClosedRange<UInt64> {
+            let c = context(cols: 100, rows: 40, seed: seed)
+            addSwordfish(c)
+            let fish = c.engine.entities(ofType: "swordfish")[0]
+            dirs.insert(fish.dx)
+            #expect(abs(fish.dx) == 3.5)
+            #expect(fish.x == (fish.dx > 0 ? -33 : 99))
+            #expect(fish.z == Depth.shark)
+            #expect(fish.y >= 9 && fish.y < Double(40 - 14))
+            #expect(fish.defaultColor == CellColor(color: .yellow, bright: true))
+        }
+        #expect(dirs == [3.5, -3.5])
+    }
+
+    @Test func swordfishColorsAreRandomIncludingTheEye() {
+        for dir in 0..<2 {
+            let mask = lines(SwordfishArt.masks[dir])
+            var eyeColors = Set<CellColor>()
+            for seed in 1...60 as ClosedRange<UInt64> {
+                let c = context(seed: seed)
+                addSwordfish(c)
+                let fish = c.engine.entities(ofType: "swordfish")[0]
+                guard (fish.dx > 0) == (dir == 0) else { continue }
+                for (y, row) in mask.enumerated() {
+                    for (x, ch) in row.enumerated() where ch.isNumber {
+                        // A digit under a transparent cell of the picture is never drawn.
+                        guard let cell = fish.sprite.frames[0].cells[y][x] else { continue }
+                        #expect(cell.color != nil, "digit \(ch) was left uncolored")
+                        // rand_color never picks white, so the 4s are not the white eye ordinary fish get.
+                        #expect(cell.color?.color != .white)
+                        if ch == "4", let color = cell.color { eyeColors.insert(color) }
+                    }
+                }
+            }
+            #expect(eyeColors.count > 1, "the eye is a random color, direction \(dir)")
+        }
+    }
+
+    // MARK: jellyfish
+
+    @Test func jellyfishGeometry() {
+        var dirs = Set<Bool>()
+        for seed in 1...80 as ClosedRange<UInt64> {
+            let c = context(seed: seed)
+            addJellyfish(c)
+            let jelly = c.engine.entities(ofType: "jellyfish")[0]
+            dirs.insert(jelly.dx > 0)
+            #expect(abs(jelly.dx) >= 0.5 && abs(jelly.dx) < 1.5)
+            #expect(jelly.x == (jelly.dx > 0 ? 0 : 78))
+            #expect(jelly.y >= 9 && jelly.y < Double(24 - 10))
+            #expect(jelly.z >= Depth.fishStart && jelly.z < Depth.fishStart + 10)
+            #expect(abs(jelly.dy) == 0.2 && jelly.frameSpeed == 0.2)
+            #expect(jelly.sprite.frames.count == 2 && jelly.height == 6)
+            #expect(jelly.defaultColor == CellColor(color: .magenta, bright: true))
+        }
+        #expect(dirs == [true, false])
+    }
+
+    @Test func jellyfishTentaclesComeInPairs() {
+        let c = context(seed: 11)
+        var counts: [String: Int] = [:]
+        let n = 1000
+        for _ in 0..<n { addJellyfish(c) }
+        for jelly in c.engine.entities(ofType: "jellyfish") {
+            // Row 3 is the first row of tentacles: " l r l" in the first frame facing right and in the
+            // second facing left.
+            let cells = jelly.sprite.frames[jelly.dx > 0 ? 0 : 1].cells[3]
+            #expect(cells[5]?.char == cells[1]?.char)
+            counts["\(cells[1]!.char)\(cells[3]!.char)", default: 0] += 1
+        }
+        #expect(Set(counts.keys) == ["()", "[]", "/\\", "||"])
+        // `(` and `)` are in Perl's list twice, so they come up twice as often.
+        #expect(abs(Double(counts["()"]!) / Double(n) - 0.4) < 0.05)
+        #expect(abs(Double(counts["[]"]!) / Double(n) - 0.2) < 0.05)
+    }
+
+    @Test func jellyfishTurnsBackFromTheWaterlineAndTheBottom() {
+        let c = context(seed: 4)
+        addJellyfish(c)
+        let jelly = c.engine.entities(ofType: "jellyfish")[0]
+        jelly.x = 30
+        jelly.dx = 0
+
+        // At the top it can only drift down.
+        jelly.y = 7
+        jelly.dy = -0.2
+        c.engine.step()
+        #expect(jelly.dy == 0.2)
+        #expect(abs(jelly.y - 7.2) < 1e-9)
+
+        // At the bottom it can only drift up.
+        let bottom = Double(24 - 2 - jelly.height)
+        jelly.y = bottom
+        jelly.dy = 0.2
+        c.engine.step()
+        #expect(jelly.dy == -0.2)
+        #expect(abs(jelly.y - (bottom - 0.2)) < 1e-9)
+
+        // Control: in the middle of the water the drift is left alone while its timer runs.
+        jelly.y = 14
+        jelly.dy = 0.2
+        c.engine.step()
+        #expect(jelly.dy == 0.2)
+    }
+
+    @Test func jellyfishWandersButStaysInTheWater() {
+        for seed in 1...12 as ClosedRange<UInt64> {
+            let c = context(cols: 240, rows: 24, seed: seed)
+            addJellyfish(c)
+            let jelly = c.engine.entities(ofType: "jellyfish")[0]
+            var drifts = Set<Double>()
+            var steps = 0
+            while jelly.isAlive && steps < 1000 {
+                c.engine.step()
+                steps += 1
+                drifts.insert(jelly.dy)
+                // The drift is at most 0.3 a step, so it never gets far past the turning points.
+                #expect(jelly.y > 6 && jelly.y + Double(jelly.height) < 23.1, "seed \(seed) y \(jelly.y)")
+            }
+            #expect(!jelly.isAlive)
+            #expect(drifts.count > 2, "seed \(seed): the drift never changed")
+        }
+    }
+
+    // MARK: the enabled set
+
+    @Test func allTwelveSpawn() {
+        for kind in SpecialKind.allCases {
+            for (cols, rows) in [(80, 24), (200, 60)] {
+                let c = context(cols: cols, rows: rows, seed: 21)
+                addSpecial(kind, c)
+                #expect(c.engine.entityCount > 0, "\(kind)")
+                let head = heads(c.engine)
+                #expect(head.map(\.type) == [Self.headType[kind]!], "\(kind)")
+                if kind == .fishhook { feedHook(c) }
+                step(c.engine, until: head[0])
+                // A new special follows, and it is a different entity.
+                #expect(heads(c.engine).count == 1 && heads(c.engine)[0] !== head[0], "\(kind)")
+            }
+        }
+    }
+
+    @Test func respectsEnabledSet() {
+        let c = context(seed: 5, settings: AquariumSettings(enabledSpecials: [.whale, .ship]))
+        addRandomSpecial(c)
+        var seen: [String] = []
+        for _ in 0..<200 {
+            let current = heads(c.engine)
+            #expect(current.count == 1)
+            guard let head = current.first else { break }
+            seen.append(head.type)
+            step(c.engine, until: head)
+        }
+        #expect(seen.count == 200)
+        #expect(Set(seen) == ["ship", "whale"], "got \(Set(seen))")
+    }
+
+    @Test func oneEnabledSpecialRepeats() {
+        for kind in [SpecialKind.swan, .jellyfish, .shark] {
+            let c = context(seed: 8, settings: AquariumSettings(enabledSpecials: [kind]))
+            addRandomSpecial(c)
+            for _ in 0..<5 {
+                let current = heads(c.engine)
+                #expect(current.map(\.type) == [Self.headType[kind]!], "\(kind)")
+                guard let head = current.first else { break }
+                step(c.engine, until: head)
+            }
+        }
+    }
+
+    @Test func everyKindCanBeTheOnlyOneEnabled() {
+        for kind in SpecialKind.allCases {
+            for seed in 1...3 as ClosedRange<UInt64> {
+                let c = context(seed: seed, settings: AquariumSettings(enabledSpecials: [kind]))
+                addRandomSpecial(c)
+                #expect(heads(c.engine).map(\.type) == [Self.headType[kind]!], "\(kind)")
+            }
+        }
+        // And with two enabled, both come up.
+        var seen = Set<String>()
+        for seed in 0..<100 {
+            let c = context(seed: UInt64(seed), settings: AquariumSettings(enabledSpecials: [.swordfish, .ducks]))
+            addRandomSpecial(c)
+            seen.formUnion(heads(c.engine).map(\.type))
+        }
+        #expect(seen == ["swordfish", "ducks"])
+    }
+
+    @Test func noSpecialsWhenNoneEnabled() {
+        let settings = AquariumSettings(enabledSpecials: [])
+        let c = context(cols: 120, rows: 40, seed: 9, settings: settings)
+        addAllFish(c)
+        let fishBefore = c.engine.entities(ofType: "fish").count
+        #expect(fishBefore > 0)
+
+        let clock = ContinuousClock()
+        let elapsed = clock.measure {
+            addRandomSpecial(c)
+            for _ in 0..<1000 { c.engine.step() }
+        }
+        #expect(elapsed < .seconds(1), "took \(elapsed)")
+        #expect(allEntities(c.engine).isEmpty)
+        // The fish carry on: each one that leaves is replaced, so the count holds.
+        #expect(c.engine.entities(ofType: "fish").count == fishBefore)
+
+        // A special that is already out dies without a successor and without a crash.
+        let d = context(seed: 9, settings: settings)
+        addSpecial(.ship, d)
+        let ship = d.engine.entities(ofType: "ship")[0]
+        step(d.engine, until: ship)
+        for _ in 0..<50 { d.engine.step() }
+        #expect(allEntities(d.engine).isEmpty)
     }
 
     // MARK: art
@@ -572,5 +992,128 @@ import Testing
         #expect(lines(BigFishArt.twoShapes[0])[1] == #"             .='\ \ \`"=,"#)
         #expect(lines(BigFishArt.twoShapes[0])[6] == #"  ;"= ._\=./_ -_ -_ {`"=_    @ \"#)
         #expect(lines(BigFishArt.twoShapes[1])[6] == #" / @    _="`} _- _- _\.=/_. =";"#)
+    }
+
+    // MARK: art, second half
+
+    private var picturesB: [(name: String, shape: String, mask: String)] {
+        var all: [(String, String, String)] = []
+        for dir in 0..<2 {
+            let side = dir == 0 ? "right" : "left"
+            all.append(("swan \(side)", SwanArt.shapes[dir], SwanArt.masks[dir]))
+            all.append(("swordfish \(side)", SwordfishArt.shapes[dir], SwordfishArt.masks[dir]))
+            for (i, shape) in DuckArt.shapes[dir].enumerated() {
+                all.append(("ducks \(side) \(i)", shape, DuckArt.masks[dir]))
+            }
+            for (i, shape) in DolphinArt.shapes[dir].enumerated() {
+                all.append(("dolphin \(side) \(i)", shape, DolphinArt.masks[dir]))
+            }
+            // The submarine is checked on its own below: one mask serves all nine frames.
+            for tentacle in 0..<JellyfishArt.leftTentacles.count {
+                let shapes = JellyfishArt.shapes(
+                    left: JellyfishArt.leftTentacles[tentacle], right: JellyfishArt.rightTentacles[tentacle])
+                for (i, shape) in shapes[dir].enumerated() {
+                    all.append(("jellyfish \(tentacle) \(side) \(i)", shape, JellyfishArt.masks[dir]))
+                }
+            }
+        }
+        return all.map { (name: $0.0, shape: $0.1, mask: $0.2) }
+    }
+
+    @Test func specialsArtInvariantsB() {
+        for (name, shape, mask) in picturesB {
+            let shapeRows = lines(shape)
+            let maskRows = lines(mask)
+            // A mask never has more rows than its picture, and never a row longer than the picture's.
+            #expect(maskRows.count <= shapeRows.count, "\(name): mask has more rows than the shape")
+            for (s, m) in zip(shapeRows, maskRows) {
+                #expect(m.count <= s.count, "\(name): mask row longer than the shape row")
+            }
+        }
+        // The submarine has one mask for nine frames, with the periscope at different heights, so it
+        // cannot fit each frame row by row (Perl's own mask is a column wider than the periscope). It
+        // fits inside the picture's bounding box, and so draws nowhere outside it.
+        for dir in 0..<2 {
+            let box = (width: SubmarineArt.shapes[dir].map { size($0).width }.max()!,
+                       height: SubmarineArt.shapes[dir].map { size($0).height }.max()!)
+            let mask = lines(SubmarineArt.masks[dir])
+            #expect(mask.count <= box.height && (mask.map(\.count).max() ?? 0) <= box.width, "submarine \(dir)")
+        }
+        // The pictures that animate keep every frame the same height, so nothing jumps.
+        for (name, frames) in [
+            ("ducks", DuckArt.shapes), ("dolphins", DolphinArt.shapes), ("submarine", SubmarineArt.shapes),
+        ] {
+            for (dir, shapes) in frames.enumerated() {
+                #expect(Set(shapes.map { size($0).height }).count == 1, "\(name) \(dir): frame heights differ")
+            }
+        }
+    }
+
+    @Test func artCountsB() {
+        #expect(DuckArt.shapes.map(\.count) == [3, 3] && DuckArt.masks.count == 2)
+        #expect(SwanArt.shapes.count == 2 && SwanArt.masks.count == 2)
+        #expect(DolphinArt.shapes.map(\.count) == [2, 2] && DolphinArt.masks.count == 2)
+        #expect(SubmarineArt.shapes.map(\.count) == [9, 9] && SubmarineArt.masks.count == 2)
+        #expect(SwordfishArt.shapes.count == 2 && SwordfishArt.masks.count == 2)
+        #expect(JellyfishArt.masks.count == 2)
+        #expect(JellyfishArt.leftTentacles.count == 5 && JellyfishArt.rightTentacles.count == 5)
+        for (l, r) in zip(JellyfishArt.leftTentacles, JellyfishArt.rightTentacles) {
+            #expect(["()", "[]", "/\\", "||"].contains("\(l)\(r)"))
+        }
+    }
+
+    @Test func leftAndRightPicturesAreTheSameSizeB() {
+        func widest(_ shapes: [String]) -> (width: Int, height: Int) {
+            (shapes.map { size($0).width }.max() ?? 0, shapes.map { size($0).height }.max() ?? 0)
+        }
+        // Perl's swordfish and submarine pictures differ by a column between the two directions (the
+        // art is copied as is), so the width may differ by one; the height may not.
+        func same(_ name: String, _ right: [String], _ left: [String], widthSlack: Int = 0) {
+            let r = widest(right), l = widest(left)
+            #expect(abs(r.width - l.width) <= widthSlack, "\(name): width \(r.width) vs \(l.width)")
+            #expect(r.height == l.height, "\(name): height \(r.height) vs \(l.height)")
+        }
+        same("swan", [SwanArt.shapes[0]], [SwanArt.shapes[1]])
+        same("swordfish", [SwordfishArt.shapes[0]], [SwordfishArt.shapes[1]], widthSlack: 1)
+        same("ducks", DuckArt.shapes[0], DuckArt.shapes[1])
+        same("dolphins", DolphinArt.shapes[0], DolphinArt.shapes[1])
+        same("submarine", SubmarineArt.shapes[0], SubmarineArt.shapes[1], widthSlack: 1)
+        let jelly = JellyfishArt.shapes(left: "(", right: ")")
+        same("jellyfish", jelly[0], jelly[1])
+    }
+
+    @Test func swordfishMaskOnlyUsesRandomizableDigits() {
+        for mask in SwordfishArt.masks {
+            let used = Set(mask.filter { !$0.isWhitespace })
+            #expect(used == ["1", "2", "3", "4", "5", "6", "7"])
+        }
+    }
+
+    /// Perl's `q{}` turns `\\` into one backslash. These rows are the ones a mangled escape would change.
+    @Test func backslashesSurviveB() {
+        // Swan: `\\\` at the end of a row is two backslashes.
+        #expect(lines(SwanArt.shapes[0])[1] == #",_    / _,\"#)
+        #expect(lines(SwanArt.shapes[0])[3] == #"|  \_  \\"#)
+        #expect(lines(SwanArt.shapes[1])[6] == #"\  ~=-   /"#)
+        // Ducks: a single backslash stays one.
+        #expect(lines(DuckArt.shapes[0][0])[2] == #" \~~= ')????\~~= ')????\~~= ')"#)
+        // Dolphins.
+        #expect(lines(DolphinArt.shapes[0][0])[1] == #"      __)\_"#)
+        #expect(lines(DolphinArt.shapes[0][0])[2] == #"(\_.-'    a`-."#)
+        // Submarine.
+        #expect(lines(SubmarineArt.shapes[0][0])[9] == #"(_)?\_________________________________/"#)
+        #expect(lines(SubmarineArt.shapes[1][0])[5] == #"              |   \"#)
+        // Swordfish: `\\\\` is two backslashes and `\\\\\\\\` is four.
+        #expect(lines(SwordfishArt.shapes[0])[1] == #"_???????????????????????????/\\\\"#)
+        #expect(lines(SwordfishArt.shapes[0])[2] == #" ",????????????_____,,,,,--\\\\\\)"#)
+        #expect(lines(SwordfishArt.shapes[0])[3] == #"  \\????????,,;_______\\\\\----""";_"#)
+        #expect(lines(SwordfishArt.shapes[0])[4] == #"   )\_.-'`"""""......-------------,o";__________"#)
+        #expect(lines(SwordfishArt.shapes[1])[6] == #"             "-.:______,...;---""/"???"????\("#)
+        #expect(lines(SwordfishArt.shapes[1])[7] == #"                 '-._??????`-._("???????????\\"#)
+        // Jellyfish: the right tentacle for index 3 is one backslash.
+        let jelly = JellyfishArt.shapes(left: JellyfishArt.leftTentacles[3], right: JellyfishArt.rightTentacles[3])
+        #expect(lines(jelly[0][0])[3] == #" / \ /"#)
+        #expect(lines(jelly[0][0])[4] == #" \ / \"#)
+        #expect(lines(jelly[1][0])[3] == #" \ / \"#)
     }
 }
