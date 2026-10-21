@@ -13,15 +13,31 @@ import Testing
         #expect(grid.rows == size.1)
     }
 
-    @Test func boundedOverLongRun() {
-        let aquarium = Aquarium(cols: 162, rows: 52, settings: .defaults, seed: 1)
+    /// An hour at 10 fps. Healthy runs peak at about 1.7x the setup count (measured over 8 seeds), so
+    /// 2.5x leaves headroom. The check runs inside the loop so a fast leak fails at once instead of
+    /// grinding through O(n^2) collisions. A slow leak stays under the ceiling, so the last third's
+    /// peak is also compared with the first third's (healthy runs differ by at most 3).
+    @Test(arguments: [UInt64(1), 2])
+    func boundedOverLongRun(seed: UInt64) {
+        let aquarium = Aquarium(cols: 162, rows: 52, settings: .defaults, seed: seed)
         let afterSetup = aquarium.entityCount
-        var peak = afterSetup
-        for _ in 0..<36_000 {
+        let ceiling = afterSetup * 5 / 2
+        let steps = 36_000
+        var windowPeaks = [0, 0, 0]
+        for i in 0..<steps {
             aquarium.step()
-            peak = max(peak, aquarium.entityCount)
+            let count = aquarium.entityCount
+            if count > ceiling {
+                Issue.record("step \(i): \(count) entities exceeds \(ceiling) (setup \(afterSetup))")
+                return
+            }
+            let window = i / (steps / 3)
+            windowPeaks[window] = max(windowPeaks[window], count)
         }
-        #expect(peak <= 4 * afterSetup, "peak \(peak) vs setup \(afterSetup)")
+        let margin = 8
+        #expect(
+            windowPeaks[2] <= windowPeaks[0] + margin,
+            "entity count is creeping up: peaks per third \(windowPeaks)")
         _ = aquarium.render()
     }
 
