@@ -454,6 +454,73 @@ import Testing
         fish.z = 5
     }
 
+    // MARK: default colors
+
+    /// Term::Animation reads an upper-case `default_color` ('WHITE') as bright and a lower-case one
+    /// ('white') as normal; an entity with none is normal white. Every value here is Perl's.
+    @Test func defaultColorsFollowPerlCase() {
+        func color(_ c: ANSIColor, bright: Bool) -> CellColor { CellColor(color: c, bright: bright) }
+        func only(_ type: String, _ engine: Engine) -> Entity { engine.entities(ofType: type)[0] }
+        let normalWhite = color(.white, bright: false)
+
+        // Upper case, one per Perl creature.
+        let expectedSpecial: [SpecialKind: CellColor] = [
+            .ship: color(.white, bright: true), .whale: color(.white, bright: true),
+            .monster: color(.green, bright: true), .bigFish: color(.yellow, bright: true),
+            .shark: color(.cyan, bright: true), .fishhook: color(.green, bright: true),
+            .swan: color(.white, bright: true), .ducks: color(.white, bright: true),
+            .dolphins: color(.blue, bright: false), .submarine: color(.yellow, bright: true),
+            .swordfish: color(.yellow, bright: true), .jellyfish: color(.magenta, bright: true),
+        ]
+        for kind in SpecialKind.allCases {
+            let c = context(seed: 3)
+            addSpecial(kind, c)
+            #expect(heads(c.engine)[0].defaultColor == expectedSpecial[kind], "\(kind)")
+        }
+        // Both monsters and both big fish.
+        let mc = context(seed: 3, settings: AquariumSettings(creatureSet: .classic))
+        addOldMonster(mc)
+        addBigFish1(mc)
+        addNewMonster(mc)
+        addBigFish2(mc)
+        #expect(mc.engine.entities(ofType: "monster").map(\.defaultColor) == Array(repeating: color(.green, bright: true), count: 2))
+        #expect(mc.engine.entities(ofType: "bigfish").map(\.defaultColor) == Array(repeating: color(.yellow, bright: true), count: 2))
+
+        // The helper parts: hook and point 'GREEN'; the line and the teeth have no color of their own.
+        let h = context(seed: 3)
+        addFishhook(h)
+        #expect(only("fishhook", h.engine).defaultColor == color(.green, bright: true))
+        #expect(only("hook_point", h.engine).defaultColor == color(.green, bright: true))
+        #expect(only("fishline", h.engine).defaultColor == normalWhite)
+        let s = context(seed: 3)
+        addShark(s)
+        #expect(only("teeth", s.engine).defaultColor == normalWhite)
+        // The dolphins: 'blue' is normal, 'BLUE' and 'CYAN' are bright.
+        let d = context(seed: 3)
+        addDolphins(d)
+        #expect(only("dolphin", d.engine).defaultColor == color(.blue, bright: false))
+
+        // The scenery: lower-case 'cyan', 'white', 'green' are normal; bubble 'CYAN' and splat 'RED' are bright.
+        let e = context(seed: 3)
+        addEnvironment(e)
+        addCastle(e)
+        addSeaweed(e)
+        #expect(e.engine.entities(ofType: "waterline").count == 4)
+        #expect(e.engine.entities(ofType: "waterline").allSatisfy { $0.defaultColor == color(.cyan, bright: false) })
+        let selfTyped = e.engine.entities(ofType: "self")
+        #expect(selfTyped.count == 2)
+        #expect(selfTyped.map(\.defaultColor).sorted { "\($0.color)" < "\($1.color)" }
+            == [color(.green, bright: false), normalWhite])
+        let f = context(seed: 3)
+        addFish(f)
+        let fish = only("fish", f.engine)
+        #expect(fish.defaultColor == normalWhite)
+        addBubble(f, from: fish)
+        #expect(only("bubble", f.engine).defaultColor == color(.cyan, bright: true))
+        addSplat(f, x: 10, y: 10, z: 5)
+        #expect(only("self", f.engine).defaultColor == color(.red, bright: true))
+    }
+
     // MARK: swan, ducks
 
     @Test func swanAndDucksGeometry() {

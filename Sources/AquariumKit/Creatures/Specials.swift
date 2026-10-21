@@ -6,13 +6,11 @@ import Foundation
 
 // Perl's lower case color names are normal, upper case ones bold (bright).
 private let white = CellColor(color: .white, bright: false)
-private let green = CellColor(color: .green, bright: false)
-private let cyan = CellColor(color: .cyan, bright: false)
-private let yellow = CellColor(color: .yellow, bright: false)
 private let blue = CellColor(color: .blue, bright: false)
 private let whiteBright = CellColor(color: .white, bright: true)
 private let yellowBright = CellColor(color: .yellow, bright: true)
 private let blueBright = CellColor(color: .blue, bright: true)
+private let greenBright = CellColor(color: .green, bright: true)
 private let cyanBright = CellColor(color: .cyan, bright: true)
 private let magentaBright = CellColor(color: .magenta, bright: true)
 
@@ -102,7 +100,7 @@ func addShark(_ c: SpawnContext) {
         y: Double(y),
         z: Depth.shark,
         dx: speed,
-        defaultColor: cyan,
+        defaultColor: cyanBright,
         dieOffscreen: true
     )
     let settings = c.settings
@@ -157,7 +155,7 @@ func addFishhook(_ c: SpawnContext) {
         x: Double(x + 7),
         y: Double(y - 50),
         z: Depth.waterLine1,
-        defaultColor: white
+        defaultColor: white  // Perl gives the line none, which is normal white
     )
     line.onTick = lowerHook
     engine.add(line)
@@ -168,7 +166,7 @@ func addFishhook(_ c: SpawnContext) {
         x: Double(x),
         y: Double(y),
         z: Depth.waterLine1,
-        defaultColor: green,
+        defaultColor: greenBright,
         dieOffscreen: true
     )
     hook.onTick = lowerHook
@@ -185,7 +183,7 @@ func addFishhook(_ c: SpawnContext) {
         x: Double(pointX),
         y: Double(pointY),
         z: Depth.shark + 1,
-        defaultColor: green,
+        defaultColor: greenBright,
         depth: Depth.fishEnd - Depth.fishStart,
         isPhysical: true,
         dieOffscreen: true
@@ -214,7 +212,7 @@ func addShip(_ c: SpawnContext) {
         y: 0,
         z: Depth.waterGap1,
         dx: speed,
-        defaultColor: white,
+        defaultColor: whiteBright,
         dieOffscreen: true
     )
     ship.onDeath = startsNextSpecial(c.settings)
@@ -272,7 +270,7 @@ func addWhale(_ c: SpawnContext) {
         z: Depth.waterGap2,
         dx: speed,
         frameSpeed: 1,
-        defaultColor: white,
+        defaultColor: whiteBright,
         dieOffscreen: true
     )
     whale.onDeath = startsNextSpecial(c.settings)
@@ -312,7 +310,7 @@ private func addMonsterEntity(
         z: Depth.waterGap2,
         dx: speed,
         frameSpeed: 0.25,
-        defaultColor: green,
+        defaultColor: greenBright,
         dieOffscreen: true
     )
     monster.onDeath = startsNextSpecial(c.settings)
@@ -391,7 +389,7 @@ private func addBigFishEntity(
         y: Double(y),
         z: Depth.shark,
         dx: dx,
-        defaultColor: yellow,
+        defaultColor: yellowBright,
         dieOffscreen: true
     )
     fish.onDeath = startsNextSpecial(c.settings)
