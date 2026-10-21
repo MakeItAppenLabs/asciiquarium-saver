@@ -7,7 +7,7 @@ each of your displays.
 It is a native macOS port of [asciiquarium](https://github.com/nothub/asciiquarium), the terminal animation
 by Kirk Baucom, rewritten in Swift with no third-party runtime code.
 
-![The Asciiquarium tank: fish, a castle, seaweed and a sea monster under a line of waves](docs/screenshot.png)
+![The Asciiquarium tank: fish of many shapes and colors, ducks riding the waves, a large fish beside the castle, and seaweed on the sea floor](docs/screenshot.png)
 
 ## Requirements
 
@@ -90,8 +90,8 @@ This port follows these pinned versions. Where the Perl program and the Python p
 
 ## License
 
-GPL-3.0. See [LICENSE](LICENSE). asciiquarium and Term::Animation are free software under the GNU GPL as
-well.
+GPL-3.0. See [LICENSE](LICENSE). The original asciiquarium is released under the GNU GPL, and
+Term::Animation under the same terms as Perl itself.
 
 ## Credits
 
