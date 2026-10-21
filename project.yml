@@ -1,0 +1,72 @@
+name: Asciiquarium
+
+options:
+  bundleIdPrefix: com.aaronmashburn
+  deploymentTarget:
+    macOS: "15.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "15.0"
+    MARKETING_VERSION: 1.0.0
+    CURRENT_PROJECT_VERSION: 1
+    ENABLE_HARDENED_RUNTIME: YES
+    # Ad-hoc ("Sign to Run Locally") until the Developer ID setup in the release task.
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "-"
+    DEVELOPMENT_TEAM: ""
+
+packages:
+  AquariumKit:
+    path: .
+    group: ""
+
+targets:
+  Asciiquarium:
+    type: bundle
+    platform: macOS
+    scheme: {}
+    sources:
+      - path: Saver
+    settings:
+      base:
+        PRODUCT_NAME: Asciiquarium
+        PRODUCT_BUNDLE_IDENTIFIER: com.aaronmashburn.asciiquarium
+        WRAPPER_EXTENSION: saver
+        INFOPLIST_FILE: Saver/Info.plist
+        INSTALL_PATH: $(HOME)/Library/Screen Savers
+    dependencies:
+      - package: AquariumKit
+      - sdk: ScreenSaver.framework
+
+  AsciiquariumPreview:
+    type: application
+    platform: macOS
+    scheme: {}
+    sources:
+      - path: Saver
+        excludes:
+          - Info.plist
+      - path: PreviewApp
+    settings:
+      base:
+        PRODUCT_NAME: AsciiquariumPreview
+        PRODUCT_BUNDLE_IDENTIFIER: com.aaronmashburn.asciiquarium.preview
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Asciiquarium Preview
+        INFOPLIST_KEY_NSPrincipalClass: NSApplication
+    dependencies:
+      - package: AquariumKit
+      - sdk: ScreenSaver.framework
+
+schemes:
+  AquariumKit:
+    # XcodeGen needs one build target; the package tests build AquariumKit themselves.
+    build:
+      targets:
+        Asciiquarium: [run]
+    test:
+      targets:
+        - package: AquariumKit/AquariumKitTests
