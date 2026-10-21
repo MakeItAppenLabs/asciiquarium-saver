@@ -1,0 +1,3 @@
+# The golden frame is compared byte for byte; keep git from changing its line endings or flagging the
+# trailing spaces that are part of the picture.
+Tests/AquariumKitTests/Golden/*.txt -text -whitespace
