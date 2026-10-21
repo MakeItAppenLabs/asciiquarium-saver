@@ -9,6 +9,10 @@ let package = Package(
     ],
     targets: [
         .target(name: "AquariumKit"),
-        .testTarget(name: "AquariumKitTests", dependencies: ["AquariumKit"]),
+        .testTarget(
+            name: "AquariumKitTests",
+            dependencies: ["AquariumKit"],
+            exclude: ["Golden"]  // read from the source tree via #filePath, not bundled
+        ),
     ]
 )
