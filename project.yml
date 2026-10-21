@@ -57,6 +57,8 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Asciiquarium Preview
         INFOPLIST_KEY_NSPrincipalClass: NSApplication
+        # Dev-only harness: a Release archive or install must never include it.
+        SKIP_INSTALL: YES
     dependencies:
       - package: AquariumKit
       - sdk: ScreenSaver.framework
