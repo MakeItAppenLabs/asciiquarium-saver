@@ -1,0 +1,48 @@
+# Runs the AquariumKit tests and builds the saver and the preview app, unsigned, on every push to main
+# and every pull request. It needs no secrets: signing and notarization happen only in scripts/release.sh
+# on a maintainer's Mac.
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Run the AquariumKit tests
+        run: swift test
+
+      - name: Generate the Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Build the saver and the preview app
+        run: |
+          for scheme in Asciiquarium AsciiquariumPreview; do
+            xcodebuild -project Asciiquarium.xcodeproj -scheme "$scheme" -configuration Release \
+              -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+          done
