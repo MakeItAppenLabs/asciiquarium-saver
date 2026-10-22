@@ -107,7 +107,9 @@ final class AsciiquariumView: ScreenSaverView {
     // MARK: Lifecycle
 
     override func startAnimation() {
-        super.startAnimation()
+        // The host may start a view that already started itself; don't run a second timer.
+        if !isAnimating { super.startAnimation() }
+        stoppedByHost = false
         log.debug("""
             startAnimation preview=\(self.isPreview) window=\(self.window.map { String(describing: type(of: $0)) } ?? "nil", privacy: .public) \
             windowVisible=\(self.window?.isVisible ?? false) occlusionState=\(self.window?.occlusionState.rawValue ?? 0)
@@ -122,7 +124,44 @@ final class AsciiquariumView: ScreenSaverView {
         }
     }
 
+    /// When the Options sheet closes, System Settings swaps the thumbnail for a fresh view that it draws
+    /// once but never starts, and takes the old one out of its window without stopping it. So a view
+    /// that replaces one just taken out of a window, and isn't started within this long, starts itself.
+    /// Views the host loads ahead of time and never starts are left alone: they may never be on screen.
+    private static let selfStartDelay: TimeInterval = 1.0
+    /// How soon after a view leaves its window a newly placed view counts as its replacement.
+    private static let replacementWindow: TimeInterval = 2.0
+    /// When a view of this module last left its window, in this process.
+    private static var lastRemovedFromWindow: Date?
+
+    /// Set when the host stops this view, so leaving a window and coming back doesn't restart it.
+    private var stoppedByHost = false
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard window != nil else {
+            Self.lastRemovedFromWindow = Date()
+            // Removed without a stopAnimation(): stop the timer instead of ticking in the background.
+            if isAnimating { halt() }
+            return
+        }
+        guard let removed = Self.lastRemovedFromWindow,
+              Date().timeIntervalSince(removed) < Self.replacementWindow else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.selfStartDelay) { [weak self] in
+            guard let self, self.window != nil, !self.isAnimating, !self.stoppedByHost,
+                  !self.bounds.isEmpty else { return }
+            log.debug("self-start preview=\(self.isPreview)")
+            self.startAnimation()
+        }
+    }
+
     override func stopAnimation() {
+        stoppedByHost = true
+        halt()
+    }
+
+    /// Stops the timer and lets go of the tank and the gradient tile.
+    private func halt() {
         super.stopAnimation()
         log.debug("stopAnimation preview=\(self.isPreview)")
         isStopped = true
