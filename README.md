@@ -26,8 +26,9 @@ by Kirk Baucom, rewritten in Swift with no third-party runtime code.
 
 The saver is signed and notarized, so macOS opens it without a security warning.
 
-**Upgrading.** After installing a new version over an old one, run `killall legacyScreenSaver` in Terminal
-or log out and back in. The system keeps the old version loaded until then.
+**Upgrading.** After installing a new version over an old one, quit System Settings, then run
+`killall legacyScreenSaver` in Terminal (or log out and back in). The system keeps the old version loaded until
+then. If System Settings was open when you ran it, quit and reopen it: until you do, **Options...** won't open.
 
 To remove it, delete `Asciiquarium.saver` from `~/Library/Screen Savers` (or `/Library/Screen Savers` if you
 installed it for everyone).
