@@ -8,7 +8,7 @@ import AquariumKit
 final class ConfigSheet: NSWindowController {
     /// The README's Credits section on GitHub, which the "Credits" button opens. Nil would keep the
     /// button disabled.
-    static let creditsURL: URL? = URL(string: "https://github.com/AaronMashburn/asciiquarium-saver#credits")
+    static let creditsURL: URL? = URL(string: "https://github.com/MakeItAppenLabs/asciiquarium-saver#credits")
 
     private static let contentWidth: CGFloat = 500
 

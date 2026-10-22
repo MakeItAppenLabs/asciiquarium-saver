@@ -17,7 +17,7 @@ by Kirk Baucom, rewritten in Swift with no third-party runtime code.
 ## Install
 
 1. Download `Asciiquarium-<version>.zip` from the
-   [Releases page](https://github.com/AaronMashburn/asciiquarium-saver/releases) and unzip it. You get
+   [Releases page](https://github.com/MakeItAppenLabs/asciiquarium-saver/releases) and unzip it. You get
    `Asciiquarium.saver` and the `LICENSE` file.
 2. Double-click `Asciiquarium.saver`. System Settings opens and asks whether to install it for your user
    only or for everyone on the Mac. Choose one and confirm.
