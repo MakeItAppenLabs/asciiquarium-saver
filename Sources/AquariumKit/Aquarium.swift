@@ -38,6 +38,12 @@ public final class Aquarium {
         engine.step()
     }
 
+    /// The Apple TV remote's click: drops the fishhook, or reels in one that is still lowering.
+    @discardableResult
+    public func pressHook() -> HookPress {
+        AquariumKit.pressHook(SpawnContext(engine: engine, settings: settings))
+    }
+
     /// Draws the current state.
     public func render() -> Grid {
         engine.render()

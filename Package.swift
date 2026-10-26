@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "AquariumKit",
-    platforms: [.macOS(.v15)],
+    platforms: [.macOS(.v15), .tvOS(.v18)],
     products: [
         .library(name: "AquariumKit", targets: ["AquariumKit"]),
     ],

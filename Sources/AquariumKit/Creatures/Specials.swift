@@ -56,14 +56,19 @@ private func startsNextSpecial(_ settings: AquariumSettings) -> (Entity, Engine)
 
 /// Perl `group_death`: the member that carries the death callback takes the entities bound to it
 /// along, then the next special starts. The other members have no callback, so only this one
-/// death starts a special.
-private func groupDeath(_ engine: Engine, settings: AquariumSettings, bound types: [String]) {
+/// death starts a special. `startsNext` is false for a fishhook dropped from the remote, which is
+/// not part of the cycle.
+private func groupDeath(
+    _ engine: Engine, settings: AquariumSettings, bound types: [String], startsNext: Bool = true
+) {
     for type in types {
         for member in engine.entities(ofType: type) {
             engine.kill(member)
         }
     }
-    addRandomSpecial(SpawnContext(engine: engine, settings: settings))
+    if startsNext {
+        addRandomSpecial(SpawnContext(engine: engine, settings: settings))
+    }
 }
 
 // MARK: shark
@@ -141,9 +146,46 @@ private func lowerHook(_ entity: Entity, _ engine: Engine) {
     }
 }
 
+/// What a click of the Apple TV remote did to the fishhook.
+public enum HookPress: Equatable, Sendable {
+    case dropped, reeledIn, ignored
+}
+
+/// The remote's click: drops a hook when none is in the water, reels in one that is still lowering,
+/// and does nothing while one rises. It ignores `enabledSpecials`, which only governs the cycle.
+@discardableResult
+func pressHook(_ c: SpawnContext) -> HookPress {
+    guard let hook = c.engine.entities(ofType: "fishhook").first(where: \.isAlive) else {
+        addFishhook(c, continuesCycle: false)
+        return .dropped
+    }
+    guard let point = c.engine.entities(ofType: "hook_point").first(where: \.isAlive), point.isPhysical
+    else { return .ignored }
+    retract(hook)
+    retract(point)
+    if let line = c.engine.entities(ofType: "fishline").first(where: \.isAlive) { retract(line) }
+    return .reeledIn
+}
+
+/// The hook's death callback: it takes its point and line along, and starts the next special unless
+/// it was dropped from the remote.
+private func hookDeath(_ settings: AquariumSettings, continuesCycle: Bool) -> (Entity, Engine) -> Void {
+    return { _, engine in
+        // Perl `group_death(@_, 'hook_point', 'fishline')`
+        groupDeath(engine, settings: settings, bound: ["hook_point", "fishline"], startsNext: continuesCycle)
+    }
+}
+
 /// Perl `add_fishhook`: a line, the hook and its point, which are lowered together.
-func addFishhook(_ c: SpawnContext) {
+///
+/// Only one hook is ever in the water. When the cycle picks the fishhook while the remote's hook is
+/// down, that hook takes over the cycle's role instead of a second one dropping.
+func addFishhook(_ c: SpawnContext, continuesCycle: Bool = true) {
     let engine = c.engine
+    if let existing = engine.entities(ofType: "fishhook").first(where: \.isAlive) {
+        if continuesCycle { existing.onDeath = hookDeath(c.settings, continuesCycle: true) }
+        return
+    }
 
     // "|\n" x 50 . " \n" x 6
     let lineImage = String(repeating: "|\n", count: 50) + String(repeating: " \n", count: 6)
@@ -174,11 +216,7 @@ func addFishhook(_ c: SpawnContext) {
         dieOffscreen: true
     )
     hook.onTick = lowerHook
-    let settings = c.settings
-    hook.onDeath = { _, engine in
-        // Perl `group_death(@_, 'hook_point', 'fishline')`
-        groupDeath(engine, settings: settings, bound: ["hook_point", "fishline"])
-    }
+    hook.onDeath = hookDeath(c.settings, continuesCycle: continuesCycle)
     engine.add(hook)
 
     let point = Entity(
