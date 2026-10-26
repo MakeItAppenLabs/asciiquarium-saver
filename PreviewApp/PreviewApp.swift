@@ -1,7 +1,7 @@
 import AppKit
 
 /// Development-only host: one resizable window running the saver view outside the screen saver host.
-/// It reads settings from its own standard defaults (`com.aaronmashburn.asciiquarium.preview`), and
+/// It reads settings from its own standard defaults (`com.makeitappenlabs.asciiquarium.preview`), and
 /// remembers the window frame. Launch arguments for testing: `-ignoreOcclusion YES` keeps animating
 /// while covered, and `-thumbnail YES` runs the view in its preview (System Settings thumbnail) mode.
 /// The Options sheet opens from the "Options…" menu item (command-comma), or at launch with

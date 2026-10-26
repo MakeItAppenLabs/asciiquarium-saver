@@ -3,13 +3,14 @@ import ScreenSaver
 import os
 import AquariumKit
 
-private let log = Logger(subsystem: "com.aaronmashburn.asciiquarium", category: "view")
+private let log = Logger(subsystem: "com.makeitappenlabs.asciiquarium", category: "view")
 
 /// The screen saver: one independent aquarium per view, drawn as terminal text.
 ///
 /// The `@objc` name is unique because the host loads every installed saver into one process.
 @objc(AMAsciiquariumView)
 final class AsciiquariumView: ScreenSaverView {
+    // Keeps the original name: existing users' settings are stored under it.
     static let moduleName = "com.aaronmashburn.asciiquarium"
 
     let store: SettingsStore
