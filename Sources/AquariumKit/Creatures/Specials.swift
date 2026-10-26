@@ -56,15 +56,18 @@ private func startsNextSpecial(_ settings: AquariumSettings) -> (Entity, Engine)
 
 /// Perl `group_death`: the member that carries the death callback takes the entities bound to it
 /// along, then the next special starts. The other members have no callback, so only this one
-/// death starts a special. `startsNext` is false for a fishhook dropped from the remote, which is
-/// not part of the cycle.
-private func groupDeath(
-    _ engine: Engine, settings: AquariumSettings, bound types: [String], startsNext: Bool = true
-) {
-    for type in types {
-        for member in engine.entities(ofType: type) {
-            engine.kill(member)
-        }
+/// death starts a special.
+private func groupDeath(_ engine: Engine, settings: AquariumSettings, bound types: [String]) {
+    groupDeath(
+        engine, settings: settings, members: types.flatMap { engine.entities(ofType: $0) }, startsNext: true)
+}
+
+/// `group_death` for a group that knows its own members, so a second group of the same types (a
+/// remote hook leaving as the cycle drops a new one) is left alone. `startsNext` is false for a
+/// fishhook dropped from the remote, which is not part of the cycle.
+private func groupDeath(_ engine: Engine, settings: AquariumSettings, members: [Entity], startsNext: Bool) {
+    for member in members {
+        engine.kill(member)
     }
     if startsNext {
         addRandomSpecial(SpawnContext(engine: engine, settings: settings))
@@ -167,12 +170,15 @@ func pressHook(_ c: SpawnContext) -> HookPress {
     return .reeledIn
 }
 
-/// The hook's death callback: it takes its point and line along, and starts the next special unless
-/// it was dropped from the remote.
-private func hookDeath(_ settings: AquariumSettings, continuesCycle: Bool) -> (Entity, Engine) -> Void {
+/// The hook's death callback: it takes its own point and line along, and starts the next special
+/// unless it was dropped from the remote.
+private func hookDeath(
+    _ settings: AquariumSettings, point: Entity?, line: Entity?, continuesCycle: Bool
+) -> (Entity, Engine) -> Void {
     return { _, engine in
         // Perl `group_death(@_, 'hook_point', 'fishline')`
-        groupDeath(engine, settings: settings, bound: ["hook_point", "fishline"], startsNext: continuesCycle)
+        groupDeath(
+            engine, settings: settings, members: [point, line].compactMap { $0 }, startsNext: continuesCycle)
     }
 }
 
@@ -183,7 +189,14 @@ private func hookDeath(_ settings: AquariumSettings, continuesCycle: Bool) -> (E
 func addFishhook(_ c: SpawnContext, continuesCycle: Bool = true) {
     let engine = c.engine
     if let existing = engine.entities(ofType: "fishhook").first(where: \.isAlive) {
-        if continuesCycle { existing.onDeath = hookDeath(c.settings, continuesCycle: true) }
+        if continuesCycle {
+            // Only one group is alive, so the live point and line are this hook's.
+            existing.onDeath = hookDeath(
+                c.settings,
+                point: engine.entities(ofType: "hook_point").first(where: \.isAlive),
+                line: engine.entities(ofType: "fishline").first(where: \.isAlive),
+                continuesCycle: true)
+        }
         return
     }
 
@@ -216,7 +229,6 @@ func addFishhook(_ c: SpawnContext, continuesCycle: Bool = true) {
         dieOffscreen: true
     )
     hook.onTick = lowerHook
-    hook.onDeath = hookDeath(c.settings, continuesCycle: continuesCycle)
     engine.add(hook)
 
     let point = Entity(
@@ -232,6 +244,7 @@ func addFishhook(_ c: SpawnContext, continuesCycle: Bool = true) {
     )
     point.onTick = lowerHook
     engine.add(point)
+    hook.onDeath = hookDeath(c.settings, point: point, line: line, continuesCycle: continuesCycle)
 }
 
 // MARK: ship

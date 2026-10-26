@@ -123,8 +123,8 @@ func fishCollision(_ c: SpawnContext, fish: Entity, colliders: [Entity]) {
             retract(other)
             retract(fish)
             // get the hook and line
-            if let hook = c.engine.entities(ofType: "fishhook").first { retract(hook) }
-            if let line = c.engine.entities(ofType: "fishline").first { retract(line) }
+            if let hook = c.engine.entities(ofType: "fishhook").first(where: \.isAlive) { retract(hook) }
+            if let line = c.engine.entities(ofType: "fishline").first(where: \.isAlive) { retract(line) }
             return
         default:
             continue

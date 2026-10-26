@@ -115,6 +115,54 @@ import Testing
         #expect(worst.others == 1)
     }
 
+    /// A remote hook leaving in the same step as the cycle's special, when the cycle then picks the
+    /// fishhook: the new hook keeps its own point and line, so it can still catch, be reeled in and
+    /// leave, and the cycle carries on.
+    @Test func newCycleHookSurvivesARemoteHookLeavingInTheSameStep() {
+        let c = Self.tank(seed: 7, settings: AquariumSettings(enabledSpecials: [.fishhook]))
+        addShip(c)
+        pressHook(c)
+        let ship = c.engine.entities(ofType: "ship")[0]
+        let remoteHook = c.engine.entities(ofType: "fishhook")[0]
+        ship.dieAfterFrames = 1
+        remoteHook.dieAfterFrames = 1
+        c.engine.step()
+        let alive = { (type: String) in c.engine.entities(ofType: type).filter(\.isAlive).count }
+        #expect(alive("fishhook") == 1)
+        #expect(alive("hook_point") == 1)
+        #expect(alive("fishline") == 1)
+        let cycleHook = c.engine.entities(ofType: "fishhook").first(where: \.isAlive)!
+        #expect(pressHook(c) == .reeledIn)
+        for _ in 0..<200 where cycleHook.isAlive { c.engine.step() }
+        #expect(!cycleHook.isAlive)
+        c.engine.step()
+        // Only the fishhook is enabled, so the cycle carries on with a fresh one.
+        #expect(c.engine.entities(ofType: "fishhook").filter(\.isAlive).count == 1)
+        #expect(alive("hook_point") == 1)
+    }
+
+    /// In a TV-sized tank with frequent clicks, a hook in the water always has its point and line, and
+    /// the cycle keeps starting specials.
+    @Test func everyHookKeepsItsPointAndLineAndTheCycleNeverStalls() {
+        for seed in UInt64(1)...6 {
+            let aquarium = Aquarium(cols: 114, rows: 31, settings: .defaults, seed: seed)
+            let engine = Mirror(reflecting: aquarium).children.first { $0.label == "engine" }!.value as! Engine
+            var specialsSeen = Set<Int>()
+            var broken = 0
+            for step in 1...10_000 {
+                if step % 23 == 0 { aquarium.pressHook() }
+                aquarium.step()
+                let alive = { (type: String) in engine.entities(ofType: type).filter(\.isAlive).count }
+                if alive("fishhook") != alive("hook_point") || alive("fishhook") != alive("fishline") { broken += 1 }
+                for type in Self.headTypes.values where type != "fishhook" {
+                    for e in engine.entities(ofType: type) { specialsSeen.insert(e.id) }
+                }
+            }
+            #expect(broken == 0, "seed \(seed): \(broken) steps with a hook missing its point or line")
+            #expect(specialsSeen.count > 10, "seed \(seed): only \(specialsSeen.count) specials in 10,000 steps")
+        }
+    }
+
     /// Only printable ASCII ever reaches the screen, so no glyph can come from a fallback font.
     @Test func everyDrawnCharacterIsPrintableASCII() {
         for set in [CreatureSet.full, .classic] {
