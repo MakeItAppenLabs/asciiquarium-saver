@@ -1,4 +1,4 @@
-# Runs the AquariumKit tests and builds the saver and the preview app, unsigned, on every push to main
+# Runs the AquariumKit tests and builds the saver, the preview app and the Apple TV app, unsigned, on every push to main
 # and every pull request. It needs no secrets: signing and notarization happen only in scripts/release.sh
 # on a maintainer's Mac.
 name: Test
@@ -46,3 +46,9 @@ jobs:
             xcodebuild -project Asciiquarium.xcodeproj -scheme "$scheme" -configuration Release \
               -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
           done
+
+      # The tvOS UI tests (TVUITests) need a simulator runtime and are run locally, not here.
+      - name: Build the Apple TV app
+        run: |
+          xcodebuild -project Asciiquarium.xcodeproj -scheme AsciiquariumTV -configuration Release \
+            -destination 'generic/platform=tvOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build

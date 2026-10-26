@@ -84,6 +84,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.makeitappenlabs.asciiquarium.tv
         INFOPLIST_FILE: TV/Info.plist
         TARGETED_DEVICE_FAMILY: "3"
+        ASSETCATALOG_COMPILER_APPICON_NAME: "App Icon & Top Shelf Image"
         ENABLE_HARDENED_RUNTIME: NO
         # Automatic signing with the team passed on the command line (DEVELOPMENT_TEAM=...) for a
         # real Apple TV; the team ID is never committed. Simulator and CI builds need none.

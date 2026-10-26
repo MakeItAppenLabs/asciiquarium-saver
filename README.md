@@ -48,6 +48,22 @@ Choose **Options...** under the Asciiquarium thumbnail in System Settings, chang
 
 Every display runs its own tank, so with several displays each shows different fish.
 
+## Apple TV
+
+There is also an Apple TV version, coming to the App Store. tvOS doesn't let apps add their own screen
+savers, so it is an app you open: it fills the TV with the tank and keeps swimming until you leave.
+
+| Remote | What it does |
+| --- | --- |
+| **Click** the touch surface | Drops the fishhook. Click again while it hangs in the water to reel it back up. |
+| **Play/Pause** | Opens Options beside the tank, with the same settings as on the Mac. Changes show at once and are kept. |
+| **Back** | Closes Options, or leaves the app. |
+
+To protect OLED TVs from burn-in, after four hours without a button press the TV is allowed to dim or start
+its own screen saver as usual. Any press starts the four hours again.
+
+It needs tvOS 18 or later.
+
 ## Build from source
 
 You need Xcode with the macOS 15 SDK (Swift 6) and [Homebrew](https://brew.sh).
@@ -72,6 +88,18 @@ xcodebuild -project Asciiquarium.xcodeproj -scheme AsciiquariumPreview -configur
 
 It lands in `build/Build/Products/Release/AsciiquariumPreview.app`. It is a development tool and is never
 part of a release.
+
+The Apple TV app is the `AsciiquariumTV` scheme. To run it in the simulator (install the tvOS platform first
+with `xcodebuild -downloadPlatform tvOS`):
+
+```sh
+xcodebuild -project Asciiquarium.xcodeproj -scheme AsciiquariumTV -destination 'platform=tvOS Simulator,name=Apple TV 4K (3rd generation)' -derivedDataPath build build
+```
+
+`xcodebuild ... test` with the same destination runs its UI tests, which press the remote and save screenshots
+in the result bundle. To run it on your own Apple TV, pair it in Xcode (Window → Devices and Simulators) and
+build with `-destination 'generic/platform=tvOS' DEVELOPMENT_TEAM=<your team ID> -allowProvisioningUpdates`.
+The Debug build's `-exportArt <directory>` launch argument renders the app icon layers and Top Shelf images.
 
 ### Releasing (maintainers only)
 

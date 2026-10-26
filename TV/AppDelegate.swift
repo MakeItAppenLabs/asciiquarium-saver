@@ -19,6 +19,9 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options: UIScene.ConnectionOptions) {
         guard let scene = scene as? UIWindowScene else { return }
+        #if DEBUG
+        ArtExport.runIfRequested()
+        #endif
         let window = UIWindow(windowScene: scene)
         window.backgroundColor = .black
         window.overrideUserInterfaceStyle = .dark
