@@ -68,6 +68,29 @@ targets:
       - package: AquariumKit
       - sdk: ScreenSaver.framework
 
+  AsciiquariumTV:
+    type: application
+    platform: tvOS
+    deploymentTarget: "18.0"
+    scheme: {}
+    sources:
+      - path: TV
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_NAME: AsciiquariumTV
+        PRODUCT_BUNDLE_IDENTIFIER: com.makeitappenlabs.asciiquarium.tv
+        INFOPLIST_FILE: TV/Info.plist
+        TARGETED_DEVICE_FAMILY: "3"
+        ENABLE_HARDENED_RUNTIME: NO
+        # Automatic signing with the team passed on the command line (DEVELOPMENT_TEAM=...) for a
+        # real Apple TV; the team ID is never committed. Simulator and CI builds need none.
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "Apple Development"
+        DEVELOPMENT_TEAM: ""
+    dependencies:
+      - package: AquariumKit
+
 schemes:
   AquariumKit:
     # XcodeGen needs one build target; the package tests build AquariumKit themselves.
