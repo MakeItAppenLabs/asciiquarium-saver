@@ -72,7 +72,9 @@ targets:
     type: application
     platform: tvOS
     deploymentTarget: "18.0"
-    scheme: {}
+    scheme:
+      testTargets:
+        - AsciiquariumTVUITests
     sources:
       - path: TV
       - path: Shared
@@ -90,6 +92,24 @@ targets:
         DEVELOPMENT_TEAM: ""
     dependencies:
       - package: AquariumKit
+
+  # Presses the remote in the simulator and keeps screenshots: Xcode has no on-screen remote.
+  AsciiquariumTVUITests:
+    type: bundle.ui-testing
+    platform: tvOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: TVUITests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.makeitappenlabs.asciiquarium.tv.uitests
+        TEST_TARGET_NAME: AsciiquariumTV
+        GENERATE_INFOPLIST_FILE: YES
+        ENABLE_HARDENED_RUNTIME: NO
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
+    dependencies:
+      - target: AsciiquariumTV
 
 schemes:
   AquariumKit:
