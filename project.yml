@@ -30,6 +30,7 @@ targets:
     scheme: {}
     sources:
       - path: Saver
+      - path: Shared
     settings:
       base:
         PRODUCT_NAME: Asciiquarium
@@ -52,6 +53,7 @@ targets:
         excludes:
           - Info.plist
           - Resources/**
+      - path: Shared
       - path: PreviewApp
     settings:
       base:

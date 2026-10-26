@@ -1,6 +1,12 @@
-import AppKit
 import CoreText
 import AquariumKit
+#if canImport(AppKit)
+import AppKit
+private typealias PlatformFont = NSFont
+#else
+import UIKit
+private typealias PlatformFont = UIFont
+#endif
 
 /// Draws a character grid as terminal text: SF Mono, regular for normal colors and bold for bright ones.
 final class GridRenderer {
@@ -25,8 +31,8 @@ final class GridRenderer {
 
     init(pointSize: CGFloat, palette: Palette) {
         self.palette = palette
-        let regular = NSFont.monospacedSystemFont(ofSize: pointSize, weight: .regular)
-        let bold = NSFont.monospacedSystemFont(ofSize: pointSize, weight: .bold)
+        let regular = PlatformFont.monospacedSystemFont(ofSize: pointSize, weight: .regular)
+        let bold = PlatformFont.monospacedSystemFont(ofSize: pointSize, weight: .bold)
         regularFont = regular as CTFont
         boldFont = bold as CTFont
 

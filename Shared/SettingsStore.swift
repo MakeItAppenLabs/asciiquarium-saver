@@ -4,7 +4,7 @@ import AquariumKit
 /// Reads and writes the settings as one JSON blob under `settings.v1`.
 ///
 /// The saver passes `ScreenSaverDefaults(forModuleWithName:)`, which the sandboxed host and the Options
-/// sheet share; the Preview app passes `.standard`.
+/// sheet share; the Preview app and the Apple TV app pass `.standard`.
 final class SettingsStore {
     static let key = "settings.v1"
 
