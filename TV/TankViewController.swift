@@ -1,3 +1,4 @@
+import SwiftUI
 import UIKit
 import AquariumKit
 
@@ -13,6 +14,11 @@ final class TankViewController: UIViewController {
     private let hint = UILabel()
 
     private(set) var isOptionsOpen = false
+    /// The open Options panel: a blur flush with the right edge, holding the SwiftUI panel.
+    private var optionsPanel: (blur: UIVisualEffectView, host: UIHostingController<OptionsPanel>)?
+
+    /// The share of the screen width the Options panel covers.
+    private static let panelWidthFraction: CGFloat = 0.42
 
     override func loadView() {
         let root = UIView()
@@ -73,7 +79,8 @@ final class TankViewController: UIViewController {
         case (.playPause, false):
             openOptions()
         case (.menu, true):
-            closeOptions()
+            // The panel handles Back itself (close, or back one screen); never let it quit the app.
+            break
         default:
             // Includes Back with Options closed, which leaves the app.
             super.pressesBegan(presses, with: event)
@@ -82,9 +89,63 @@ final class TankViewController: UIViewController {
 
     // MARK: Options
 
-    func openOptions() {}
+    /// Slides the panel in from the right. The tank keeps swimming beside it.
+    func openOptions() {
+        guard !isOptionsOpen else { return }
+        isOptionsOpen = true
+        hint.layer.removeAllAnimations()
+        hint.alpha = 0
+        let panel = OptionsPanel(
+            settings: tankView.settings,
+            onChange: { [weak self] new in
+                self?.store.save(new)
+                self?.tankView.apply(new)
+            },
+            onClose: { [weak self] in self?.closeOptions() }
+        )
+        let host = UIHostingController(rootView: panel)
+        host.view.backgroundColor = .clear
+        let blur = UIVisualEffectView(effect: UIBlurEffect(style: .dark))
 
-    func closeOptions() {}
+        addChild(host)
+        blur.contentView.addSubview(host.view)
+        view.addSubview(blur)
+        host.didMove(toParent: self)
+        optionsPanel = (blur, host)
+
+        let width = (view.bounds.width * Self.panelWidthFraction).rounded()
+        let insets = view.safeAreaInsets
+        blur.frame = CGRect(x: view.bounds.width, y: 0, width: width, height: view.bounds.height)
+        // The blur reaches the screen edge; the controls stay inside the safe area.
+        host.view.frame = CGRect(
+            x: 40, y: insets.top,
+            width: width - 40 - insets.right, height: view.bounds.height - insets.top - insets.bottom)
+        UIView.animate(withDuration: 0.25, delay: 0, options: [.curveEaseOut]) {
+            blur.frame.origin.x = self.view.bounds.width - width
+        }
+        setNeedsFocusUpdate()
+    }
+
+    /// Slides the panel out and removes it.
+    func closeOptions() {
+        guard isOptionsOpen, let (blur, host) = optionsPanel else { return }
+        isOptionsOpen = false
+        optionsPanel = nil
+        host.willMove(toParent: nil)
+        UIView.animate(withDuration: 0.25, delay: 0, options: [.curveEaseIn]) {
+            blur.frame.origin.x = self.view.bounds.width
+        } completion: { _ in
+            host.view.removeFromSuperview()
+            host.removeFromParent()
+            blur.removeFromSuperview()
+        }
+        setNeedsFocusUpdate()
+    }
+
+    override var preferredFocusEnvironments: [UIFocusEnvironment] {
+        if let host = optionsPanel?.host { return [host] }
+        return super.preferredFocusEnvironments
+    }
 
     // MARK: Launch hint
 
