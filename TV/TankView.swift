@@ -17,7 +17,9 @@ final class TankView: UIView {
     private var tank: Tank?
     private let backgroundRenderer = BackgroundRenderer()
 
-    var aquarium: Aquarium? { tank?.aquarium }
+    /// The tank's aquarium, built now if no frame has been drawn yet (just after launch or a settings
+    /// change), so a click in that moment still reaches it.
+    var aquarium: Aquarium? { currentTank()?.aquarium }
 
     init(settings: AquariumSettings) {
         self.settings = settings
