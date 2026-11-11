@@ -26,6 +26,18 @@ by Kirk Baucom, rewritten in Swift with no third-party runtime code.
 
 The saver is signed and notarized, so macOS opens it without a security warning.
 
+**With Homebrew.** Instead of the steps above, run:
+
+```sh
+brew trust --cask makeitappenlabs/tap/asciiquarium-saver
+brew install --cask makeitappenlabs/tap/asciiquarium-saver
+```
+
+Then choose Asciiquarium in System Settings as in step 3. The first line is needed once: Homebrew won't
+load a cask from a third-party tap until you trust it, and without it `brew upgrade` can't update the
+saver later. The cask is `asciiquarium-saver` because `brew install asciiquarium` is the original terminal
+program. See [MakeItAppenLabs/homebrew-tap](https://github.com/MakeItAppenLabs/homebrew-tap).
+
 **Upgrading.** After installing a new version over an old one, quit System Settings, then run
 `killall legacyScreenSaver` in Terminal (or log out and back in). The system keeps the old version loaded until
 then. If System Settings was open when you ran it, quit and reopen it: until you do, **Options...** won't open.
