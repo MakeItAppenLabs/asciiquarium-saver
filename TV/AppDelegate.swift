@@ -22,11 +22,31 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         #if DEBUG
         ArtExport.runIfRequested()
         #endif
-        let window = UIWindow(windowScene: scene)
+        let window = ActivityWindow(windowScene: scene)
         window.backgroundColor = .black
         window.overrideUserInterfaceStyle = .dark
-        window.rootViewController = TankViewController()
+        let tank = TankViewController()
+        window.onActivity = { [weak tank] in tank?.remoteActivity() }
+        window.rootViewController = tank
         window.makeKeyAndVisible()
         self.window = window
+    }
+}
+
+/// A window that reports every remote press and touch as it begins, before any view handles it. The
+/// Options panel's list consumes its presses, so the tank never sees them.
+final class ActivityWindow: UIWindow {
+    var onActivity: (() -> Void)?
+
+    override func sendEvent(_ event: UIEvent) {
+        if Self.begins(event) { onActivity?() }
+        super.sendEvent(event)
+    }
+
+    private static func begins(_ event: UIEvent) -> Bool {
+        if let presses = event as? UIPressesEvent {
+            return presses.allPresses.contains { $0.phase == .began }
+        }
+        return event.allTouches?.contains { $0.phase == .began } ?? false
     }
 }

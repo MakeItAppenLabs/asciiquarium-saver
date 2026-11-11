@@ -35,13 +35,6 @@ struct OptionsPanel: View {
                         Text("Classic").tag(CreatureSet.classic)
                     }
                 }
-                Section("Text size") {
-                    Picker("Text size", selection: $settings.textSize) {
-                        Text("Small").tag(TextSize.small)
-                        Text("Medium").tag(TextSize.medium)
-                        Text("Large").tag(TextSize.large)
-                    }
-                }
                 Section {
                     NavigationLink(value: Screen.specials) {
                         LabeledContent(
@@ -51,6 +44,15 @@ struct OptionsPanel: View {
                     NavigationLink(value: Screen.background) {
                         LabeledContent("Background", value: backgroundSummary)
                     }
+                }
+                Section("Text size") {
+                    Picker("Text size", selection: $settings.textSize) {
+                        Text("Small").tag(TextSize.small)
+                        Text("Medium").tag(TextSize.medium)
+                        Text("Large").tag(TextSize.large)
+                    }
+                }
+                Section {
                     NavigationLink("Credits", value: Screen.credits)
                 }
             }

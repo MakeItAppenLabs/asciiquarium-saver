@@ -36,9 +36,11 @@ final class TankViewController: UIViewController {
         center.addObserver(
             self, selector: #selector(didBecomeActive),
             name: UIApplication.didBecomeActiveNotification, object: nil)
+        // Siri, Control Center and notifications only make the app inactive, and the tank stays in view
+        // behind them, so it keeps swimming until the app actually leaves the screen.
         center.addObserver(
-            self, selector: #selector(willResignActive),
-            name: UIApplication.willResignActiveNotification, object: nil)
+            self, selector: #selector(didEnterBackground),
+            name: UIApplication.didEnterBackgroundNotification, object: nil)
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -48,7 +50,7 @@ final class TankViewController: UIViewController {
     }
 
     @objc private func didBecomeActive() { start() }
-    @objc private func willResignActive() { stop() }
+    @objc private func didEnterBackground() { stop() }
 
     /// Starts the frame timer, and keeps the TV awake until the idle guard's limit.
     func start() {
@@ -67,8 +69,13 @@ final class TankViewController: UIViewController {
 
     // MARK: Remote
 
-    override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+    /// Any press or touch on the remote, wherever focus is (the window reports it, so presses the
+    /// Options panel handles count too): keeps the TV awake and restarts the idle clock.
+    func remoteActivity() {
         idleGuard.activity()
+    }
+
+    override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
         guard let type = presses.first?.type else {
             super.pressesBegan(presses, with: event)
             return
