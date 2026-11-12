@@ -2,7 +2,8 @@
 
 An aquarium for your Mac's screen saver, drawn entirely in ASCII art. Fish, a castle, seaweed, bubbles and a
 cast of passing visitors (a ship, a whale, a shark, a fishhook, ducks and more) swim across a tank that fills
-each of your displays.
+each of your displays. It also comes as an app for Apple TV,
+[free on the App Store](https://apps.apple.com/app/id6833599984).
 
 It is a native macOS port of [asciiquarium](https://github.com/nothub/asciiquarium), the terminal animation
 by Kirk Baucom, rewritten in Swift with no third-party runtime code.
@@ -62,8 +63,9 @@ Every display runs its own tank, so with several displays each shows different f
 
 ## Apple TV
 
-There is also an Apple TV version, coming to the App Store. tvOS doesn't let apps add their own screen
-savers, so it is an app you open: it fills the TV with the tank and keeps swimming until you leave.
+There is also an Apple TV version, [free on the App Store](https://apps.apple.com/app/id6833599984).
+tvOS doesn't let apps add their own screen savers, so it is an app you open: it fills the TV with the tank
+and keeps swimming until you leave.
 
 | Remote | What it does |
 | --- | --- |
