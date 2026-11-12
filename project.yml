@@ -82,6 +82,8 @@ targets:
       base:
         PRODUCT_NAME: AsciiquariumTV
         PRODUCT_BUNDLE_IDENTIFIER: com.makeitappenlabs.asciiquarium.tv
+        # The TV app is versioned on its own; the Mac saver uses the base MARKETING_VERSION.
+        MARKETING_VERSION: 1.1.0
         INFOPLIST_FILE: TV/Info.plist
         TARGETED_DEVICE_FAMILY: "3"
         ASSETCATALOG_COMPILER_APPICON_NAME: "App Icon & Top Shelf Image"
