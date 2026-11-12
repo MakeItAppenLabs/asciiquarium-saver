@@ -410,9 +410,9 @@ enum MonsterArt {
     ]
 }
 
-enum BigFishArt {
+public enum BigFishArt {
     /// `add_big_fish_1`'s `@big_fish_image`.
-    static let oneShapes: [String] = [
+    public static let oneShapes: [String] = [
 #"""
 
  ______
@@ -452,7 +452,7 @@ enum BigFishArt {
     ]
 
     /// `add_big_fish_1`'s `@big_fish_mask`: digits are random colors.
-    static let oneMasks: [String] = [
+    public static let oneMasks: [String] = [
 #"""
 
  111111
@@ -492,7 +492,7 @@ enum BigFishArt {
     ]
 
     /// `add_big_fish_2`'s `@big_fish_image`.
-    static let twoShapes: [String] = [
+    public static let twoShapes: [String] = [
 #"""
 
                 _ _ _
@@ -530,7 +530,7 @@ enum BigFishArt {
     ]
 
     /// `add_big_fish_2`'s `@big_fish_mask`: digits are random colors.
-    static let twoMasks: [String] = [
+    public static let twoMasks: [String] = [
 #"""
 
                 1 1 1
